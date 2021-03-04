@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2>Bienvenido {{ current_user.username }}!</h2>
+        <p>Aquí podrás visualizar y controlar tus gastos de un modo más eficiente y productivo.</p>
+    </div>
+    <div class="col-md-4">
+        <div class="content-section">
+            <h3>Balance</h3>
+            <p class='text-muted'>
+                {% if banks%}
+                Estado bancario al {{ date }}
+                <ul class="list-group">
+                    {% for bank in banks %}
+                    <li class="list-group-item list-group-item-light">
+                        <p style="display: inline;"><b>{{ bank.bank }}</b></p>
+                        {% if last[bank.bank] > 0 %}
+                        <p style="display: inline; float: right; color: green;">ARS {{ last[bank.bank] }}</p>
+                        {% else %}
+                        <p style="display: inline; float: right; color: red;">ARS {{ last[bank.bank] }}</p>
+                        {% endif %}
+                        <p>{{ bank.account_n }}</p>
+                        </p>
+                    </li>
+                    {% endfor %}
+                {% else %}
+                No hay datos cargados
+                {% endif %}
+                </ul>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

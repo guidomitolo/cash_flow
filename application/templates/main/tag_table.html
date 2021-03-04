@@ -1,0 +1,102 @@
+{% extends "main/tag.html" %} 
+
+{% block table %}
+    <h2>Clasificación</h2>
+    <h5>Selecciones banco y período para clasificar</h5>
+    {% if banks %}
+    <div class="col-8">
+        <form action="" method="post">
+            <select class="custom-select col-3 mb-4" name="bank" required>
+                <option disabled selected value="">Banco</option>
+                    {% for bank in banks %}
+                        <option value="{{ bank.bank }}">{{ bank.bank }}</option>
+                    {% endfor %}
+            </select>
+            <button class="btn btn-outline-secondary mb-4" type="submit" value="Select">Seleccionar</button>
+            {% if bank %}
+            <span class="btn mb-4">{{ bank }}</span>
+            {% endif %}
+        </form>
+        <form action="" method="post">
+            <select class="custom-select col-3 mb-4" name="start_date" required>
+                <option disabled selected value="">Inicio</option>
+                {% if s_dates %}
+                    {% for date in s_dates %}
+                        <option value="{{ date.timestamp.date() }}">{{ date.timestamp.date() }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+            <button class="btn btn-outline-secondary mb-4" type="submit" value="Select">Seleccionar</button>
+            {% if start_date %}
+            <span class="btn mb-4">{{ start_date }}</span>
+            {% endif %}
+        </form>
+        <form action="" method="post">
+            <select class="custom-select col-3 mb-4" name="end_date" required>
+                <option disabled selected value="">Final</option>
+                {% if e_dates %}
+                    {% for date in e_dates %}
+                        <option value="{{ date.timestamp.date() }}">{{ date.timestamp.date() }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+            <button class="btn btn-outline-secondary mb-4" type="submit" value="Select">Seleccionar</button>
+            {% if end_date %}
+            <span class="btn mb-4">{{ end_date }}</span>
+            {% endif %}
+        </form>
+    </div>
+    {% else %}
+    <p>No hay datos cargados</p>
+    {% endif %}
+    {% if data %}
+    <table class="table table-sm" style='margin-top: 20px;'>
+        <thead>
+            <tr>
+                <th style="text-align: center;">Fecha</th>
+                <th style="text-align: center;">Concepto</th>
+                <th>Importe</th>
+                <th>Saldo</th>
+                <th style="text-align: center;">Tag</th>
+            </tr>
+        </thead>
+        <tbody>
+            <form action="" method="POST" id="tagform" novalidate>
+            {% for row in data.items %}
+            {{ form.hidden_tag() }}
+                <tr>
+                    <td>{{ row.timestamp.date() }}</td>
+                    <td>{{ row.detail }}</td>
+                    <td>{{ row.flow }}</td>
+                    <td>{{ row.bal }}</td>
+                    <td>{{ form.tags[loop.index0].tag(value=value[loop.index0]) }}</td>
+                </tr>
+            {% endfor %}
+            </form>
+        </tbody>
+    </table>
+    <div style="display: inline-block; align-items: center;">
+    {% for page_num in data.iter_pages(left_edge = 1, right_edge=1, left_current=1, right_current=2 ) %}
+    {% if page_num %}
+        {% if page_num == data.page %}
+        <a class="btn btn-info mb-4" href="{{ url_for('main.tag_table', page=page_num )}}">{{ page_num }}</a>
+        {% else %}
+        <a class="btn btn-outline-info mb-4" href="{{ url_for('main.tag_table', page=page_num )}}">{{ page_num }}</a>
+        {% endif %}    
+    {% else %}
+    ...
+    {% endif %}
+    {% endfor %}
+
+    {% if submit == 1 %}
+        <button class="btn btn-info mb-4" type="submit" value="Tag" form="tagform" name='tag_1'>Actualizar</button>
+    {% elif submit == 2 %}
+        <button class="btn btn-info mb-4" type="submit" value="Tag" form="tagform" name='tag_2'>Actualizar</button>
+    {% elif submit == 3 %}
+        <button class="btn btn-info mb-4" type="submit" value="Tag" form="tagform" name='tag_3'>Actualizar</button>
+    {% endif %}
+    </div>
+
+    {% endif %}
+
+{% endblock %}
