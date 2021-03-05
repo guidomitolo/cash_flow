@@ -12,7 +12,7 @@ from application.models import Account
 
 def check_db(data_input):
 
-    query = Account.query.all()
+    query = Account.query.filter(Account.user_id == current_user.id).all()
     all_db = [[line.bank, line.account_n, line.timestamp, line.detail ,line.flow, line.bal] for line in query]
 
     data_submitted = []
