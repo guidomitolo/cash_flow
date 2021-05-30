@@ -1,7 +1,7 @@
-from application.models import User
+from application.auth.models import User
 from application.auth.forms import LoginForm, RegistrationForm
 from application.auth import bp
-from application import login_manager, db
+from application import db
 
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import login_user, logout_user, login_required, current_user

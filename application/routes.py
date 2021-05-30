@@ -6,7 +6,7 @@ from sqlalchemy import extract
 from flask_login import login_required, current_user
 from flask import render_template
 
-from .models import Account, Credit
+from application.main.models import Balance, Credit
 from application import current_app as app, db
 
 @app.route('/')
@@ -26,11 +26,11 @@ def index():
     bank_credit = None
     debt = None
         
-    if Account.query.all():
-        bank_list = Account.query.filter(Account.user_id == current_user.id).with_entities(Account.account_n, Account.bank).distinct().all()
+    if Balance.query.all():
+        bank_list = Balance.query.filter(Balance.user_id == current_user.id).with_entities(Balance.account_n, Balance.bank).distinct().all()
         last_bal = {}
         for bank in bank_list:
-            bal = Account.query.with_entities(Account.bal).filter(Account.bank == bank.bank).all()
+            bal = Balance.query.with_entities(Balance.bal).filter(Balance.bank == bank.bank).all()
             last_bal[bank.bank] = round(float(bal[-1][0]),2)
 
     if Credit.query.all():

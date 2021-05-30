@@ -67,17 +67,25 @@
     <table class="table table-sm" style='margin-top: 20px;'>
         <thead>
             <tr>
-                <th style="text-align: center;">Fecha</th>
+                <th style="text-align: center;">Banco</th>
+                <th style="text-align: center;">Tarjeta</th>
+                <th style="text-align: center;">Nro. de Tarjeta</th>
+                <th style="text-align: center;">Vencimiento</th>
+                <th style="text-align: center;">Fecha de consumo</th>
                 <th style="text-align: center;">Acreedor</th>
                 <th>Cuota</th>
                 <th>Importe en ARS</th>
-                <th style="text-align: center;">Importe en ARS</th>
+                <th style="text-align: center;">Importe en USD</th>
                 <th style="text-align: center;">Tag</th>
             </tr>
         </thead>
         <tbody>
         {% for row in data.items %}
             <tr>
+                <td>{{ row.bank }}</td>
+                <td>{{ row.card }}</td>
+                <td>{{ row.card_number }}</td>
+                <td>{{ row.expiration }}</td>
                 <td>{{ row.timestamp.date() }}</td>
                 <td>{{ row.creditor }}</td>
                 {% if row.share  %}

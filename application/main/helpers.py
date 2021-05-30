@@ -1,28 +1,27 @@
 from openpyxl import load_workbook
 from datetime import datetime as dt
-import datetime
 import re
+import datetime
 import os
 
 from application import current_app as app
 from application import db
 from flask_login import current_user
-from application.models import Account, Credit
+from application.main.models import Balance, Credit
 
 def check_db(data_input, signal):
 
     if signal:
         app.logger.info('INSERTING MOVS ROWS IN DB')
-        query = Account.query.filter(Account.user_id == current_user.id).all()
+        query = Balance.query.filter(Balance.user_id == current_user.id).all()
         all_db = [[line.bank, line.account_n, line.timestamp, line.detail ,line.flow, line.bal] for line in query]
-
         data_submitted = []
         for row_data in data_input[::-1]:
             if all_db:
                 if row_data in all_db:
                     pass
                 else:
-                    account = Account(
+                    account = Balance(
                         bank= row_data[0],
                         account_n= row_data[1],
                         timestamp =  row_data[2],
@@ -34,13 +33,13 @@ def check_db(data_input, signal):
                     db.session.add(account)
                     data_submitted.append([row_data[0],
                         row_data[1],
-                        row_data[2].date(),
+                        row_data[2],
                         row_data[3],
                         row_data[4],
                         row_data[5]]
                     )
             else:
-                account = Account(
+                account = Balance(
                     bank= row_data[0],
                     account_n= row_data[1],
                     timestamp =  row_data[2],
@@ -52,7 +51,7 @@ def check_db(data_input, signal):
                 db.session.add(account)
                 data_submitted.append([row_data[0],
                     row_data[1],
-                    row_data[2].date(),
+                    row_data[2],
                     row_data[3],
                     row_data[4],
                     row_data[5]]
@@ -224,7 +223,7 @@ def parse_data(account_num=None, table=None):
 
 
 def load_movs(loaded_file):
-    app.logger.info('READING XLS')
+    app.logger.info('READING XLSX')
 
     workbook = load_workbook(filename=loaded_file, data_only=True)
     sheet = workbook.active
@@ -279,12 +278,13 @@ def load_movs(loaded_file):
                 table[col.value] = []
         if i > 0:
             for j, col in enumerate(row[apex_c : col_len + 1]):
-                if isinstance(col.value, dt):
-                    table[header[j]].append(col.value.strftime('%d/%m/%Y'))
-                else:
+                try:
+                    table[header[j]].append(dt.strptime(col.value, '%d/%m/%Y').date())
+                except:
                     cell = " ".join(str(col.value).strip().split())
                     table[header[j]].append(cell)
 
+    print(loaded_file)
     os.remove(loaded_file)
 
     return parse_data(account_num, table)

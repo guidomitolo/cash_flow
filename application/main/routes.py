@@ -5,7 +5,7 @@ from application import current_app as app
 from application import db
 from application.main import bp
 from application.main.helpers import load_movs, load_credit
-from application.models import Account, Credit
+from application.main.models import Balance, Credit
 
 from flask import render_template, flash, redirect, url_for, request, session
 from flask_login import login_required, current_user
@@ -53,34 +53,34 @@ def get_data(bank=None, page=None, start=None, end=None, tag=None, credit=None):
                     .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
     else:
         if start and end:
-            return Account.query\
+            return Balance.query\
                     .filter(
-                            Account.user_id == current_user.id,
-                            Account.bank == bank,
-                            Account.timestamp >= datetime.strptime(start, "%Y-%m-%d"),
-                            Account.timestamp <= datetime.strptime(end, "%Y-%m-%d"),
+                            Balance.user_id == current_user.id,
+                            Balance.bank == bank,
+                            Balance.timestamp >= datetime.strptime(start, "%Y-%m-%d"),
+                            Balance.timestamp <= datetime.strptime(end, "%Y-%m-%d"),
                     )\
                     .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
         elif start:
-            return Account.query\
+            return Balance.query\
                 .filter(
-                        Account.user_id == current_user.id,
-                        Account.bank == bank,
-                        Account.timestamp >= datetime.strptime(start, "%Y-%m-%d")
+                        Balance.user_id == current_user.id,
+                        Balance.bank == bank,
+                        Balance.timestamp >= datetime.strptime(start, "%Y-%m-%d")
                 )\
                 .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
         elif tag:
-            return Account.query\
+            return Balance.query\
                 .filter(
-                        Account.user_id == current_user.id,
-                        Account.tag == tag,
+                        Balance.user_id == current_user.id,
+                        Balance.tag == tag,
                 )\
                 .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])    
         else:
-            return Account.query\
+            return Balance.query\
                     .filter(
-                        Account.user_id == current_user.id,
-                        Account.bank == bank
+                        Balance.user_id == current_user.id,
+                        Balance.bank == bank
                     )\
                     .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
 
@@ -100,14 +100,14 @@ def get_dates(bank, start=None, credit=None):
                 .distinct().all()
     else:
         if bank and start:
-            return Account.query.with_entities(Account.timestamp) \
-                .filter(Account.bank == bank, Account.timestamp >= datetime.strptime(start, "%Y-%m-%d")) \
-                .order_by(Account.timestamp) \
+            return Balance.query.with_entities(Balance.timestamp) \
+                .filter(Balance.bank == bank, Balance.timestamp >= datetime.strptime(start, "%Y-%m-%d")) \
+                .order_by(Balance.timestamp) \
                 .distinct().all()
         else:
-            return Account.query.with_entities(Account.timestamp) \
-                .filter(Account.bank == bank) \
-                .order_by(Account.timestamp) \
+            return Balance.query.with_entities(Balance.timestamp) \
+                .filter(Balance.bank == bank) \
+                .order_by(Balance.timestamp) \
                 .distinct().all()
 
 
@@ -145,8 +145,8 @@ def upload_movs():
                     flash('Parsing issue!')
                     app.logger.info('Parsing issue.')
 
-    if Account.query.all():
-        count = len(Account.query.filter(Account.user_id == current_user.id).with_entities(Account.id).distinct().all())
+    if Balance.query.all():
+        count = len(Balance.query.filter(Balance.user_id == current_user.id).with_entities(Balance.id).distinct().all())
 
     return render_template('main/upload_movs.html', form=form, data=uploaded, count = count)
 
@@ -195,11 +195,12 @@ def flow():
     end_date = None
     s_dates = None
     e_dates = None
+    tag_list = None
     selected_tag = None
 
-    if Account.query.all():
-        bank_list = Account.query.filter(Account.user_id==current_user.id).with_entities(Account.bank).distinct().all()
-        tag_list = Account.query.filter(Account.tag != None, Account.tag != '').with_entities(Account.tag).distinct().all()
+    if Balance.query.all():
+        bank_list = Balance.query.filter(Balance.user_id==current_user.id).with_entities(Balance.bank).distinct().all()
+        tag_list = Balance.query.filter(Balance.tag != None, Balance.tag != '').with_entities(Balance.tag).distinct().all()
 
     if request.form.get("type"):
         selected_tag = request.form.get("type")
@@ -391,8 +392,8 @@ def tag_table():
     e_dates = None
 
     bank_list = None
-    if Account.query.all():
-        bank_list = Account.query.filter(Account.user_id==current_user.id).with_entities(Account.bank).distinct().all()
+    if Balance.query.all():
+        bank_list = Balance.query.filter(Balance.user_id==current_user.id).with_entities(Balance.bank).distinct().all()
 
     page = request.args.get('page', 1, type=int)
 

@@ -33,15 +33,12 @@ def create_app(config_class=DevConfig):
 
         login_manager.init_app(app)
 
-        from application import routes, models, errors
-            
         db.init_app(app)
         migrate.init_app(app, db)
         
-        # inside this function is setted
-        # which level message to show according to
-        # flask's enviroment type
-        # configure_logging(app)
+        configure_logging(app)
+
+        from application import routes, errors
 
         from application.auth import bp as auth_bp
         app.register_blueprint(auth_bp)
@@ -49,11 +46,12 @@ def create_app(config_class=DevConfig):
         from application.main import bp as main_bp
         app.register_blueprint(main_bp)
 
-        from application.models import User, Account, Credit
+        from application.auth.models import User
+        from application.main.models import Balance, Credit
 
         @app.shell_context_processor
         def make_shell_context():
-            return {'db': db, 'User': User, 'Account': Account, 'Credit': Credit}
+            return {'db': db, 'User': User, 'Balance': Balance, 'Credit': Credit}
 
         @login_manager.user_loader
         def load_user(id):
