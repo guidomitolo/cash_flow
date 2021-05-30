@@ -161,14 +161,16 @@ def upload_credit():
     form = FileSubmit()
     if request.method == 'POST':
         if form.validate_on_submit():
+            card = request.form.get('tarjeta')
+            card_number = request.form.get('numero')
+            expiration = request.form.get('vencimiento')
             f = form.file.data
             filename = secure_filename(f.filename)
             save_path = os.path.join(app.config['UPLOAD_PATH'], filename)
             f.save(save_path)
             if form.upload.data:
                 try:
-                    uploaded = load_credit(save_path)
-                    print(len(uploaded))
+                    uploaded = load_credit(save_path, card, card_number, expiration)
                     if uploaded:
                         flash('¡Carga exitosa!')
                         app.logger.info('A new file has been uploaded.')

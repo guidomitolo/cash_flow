@@ -8,8 +8,18 @@
       {{ form.csrf_token }}
       <small>Compatibilidad (v.1. beta) con BBVA</small>
       <p>
+        <label>Tarjeta</label>
+        <input type="text" name='tarjeta'>
+
+        <label>Nro. de Tarjeta</label>
+        <input type="number" name='numero'>
+
+        <label>Vecimiento</label>
+        <input type="date" name='vencimiento' placeholder="DD-MM-YYYY">
+
         {{ form.file(class="btn btn-outline-secondary mb-4") }}
         {{ form.upload(class="btn btn-outline-secondary mb-4") }}
+
         {% for error in form.file.errors %}
           <span style="color: red;">{{ error }}</span>
         {% endfor %}
