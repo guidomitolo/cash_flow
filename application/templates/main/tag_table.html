@@ -1,8 +1,8 @@
 {% extends "main/tag.html" %} 
 
 {% block table %}
-    <h2>Clasificación</h2>
-    <h5 style="margin-bottom: 20px;">Selecciones banco y período para clasificar</h5>
+    <h2>Clasificación de Movimientos</h2>
+    <h5 style="margin-bottom: 20px;">Seleccione banco y período para clasificar</h5>
     {% if banks %}
     <div class="col-8">
         <form action="" method="post">
@@ -79,9 +79,9 @@
     {% for page_num in data.iter_pages(left_edge = 1, right_edge=1, left_current=1, right_current=2 ) %}
     {% if page_num %}
         {% if page_num == data.page %}
-        <a class="btn btn-info mb-4" href="{{ url_for('main.tag_table', page=page_num )}}">{{ page_num }}</a>
+        <a class="btn btn-info mb-4" href="{{ url_for('main.tag_table', page=page_num, type='flow' )}}">{{ page_num }}</a>
         {% else %}
-        <a class="btn btn-outline-info mb-4" href="{{ url_for('main.tag_table', page=page_num )}}">{{ page_num }}</a>
+        <a class="btn btn-outline-info mb-4" href="{{ url_for('main.tag_table', page=page_num, type='flow' )}}">{{ page_num }}</a>
         {% endif %}    
     {% else %}
     ...

@@ -1,7 +1,7 @@
 {% extends "base.html" %} 
 
 {% block content %}
-    <h2>Movimientos</h2>
+    <h2>Pagos</h2>
     <h5 style="margin-bottom: 20px;">Selecciones banco y período</h5>
     {% if banks %}
     <div class="col-8">
@@ -68,9 +68,10 @@
         <thead>
             <tr>
                 <th style="text-align: center;">Fecha</th>
-                <th style="text-align: center;">Concepto</th>
-                <th>Importe</th>
-                <th>Saldo</th>
+                <th style="text-align: center;">Acreedor</th>
+                <th>Cuota</th>
+                <th>Importe en ARS</th>
+                <th style="text-align: center;">Importe en ARS</th>
                 <th style="text-align: center;">Tag</th>
             </tr>
         </thead>
@@ -78,10 +79,19 @@
         {% for row in data.items %}
             <tr>
                 <td>{{ row.timestamp.date() }}</td>
-                <td>{{ row.detail }}</td>
-                <td>{{ row.flow }}</td>
-                <td>{{ row.bal }}</td>
-                <td style="text-align: center;">{{ row.tag }}</td>
+                <td>{{ row.creditor }}</td>
+                {% if row.share  %}
+                <td>{{ row.share }}</td>
+                {% else %}
+                <td>Única</td>
+                {% endif %}
+                <td>{{ row.ars }}</td>
+                <td style="text-align: center;">{{ row.usd }}</td>
+                {% if row.tag  %}
+                <td>{{ row.tag }}</td>
+                {% else %}
+                <td></td>
+                {% endif %}
             </tr>
         {% endfor %}
         </tbody>
@@ -89,9 +99,9 @@
     {% for page_num in data.iter_pages(left_edge = 1, right_edge=1, left_current=1, right_current=2 ) %}
     {% if page_num %}
         {% if page_num == data.page %}
-        <a class="btn btn-info mb-4" href="{{ url_for('main.flow', page=page_num )}}">{{ page_num }}</a>
+        <a class="btn btn-info mb-4" href="{{ url_for('main.payments', page=page_num )}}">{{ page_num }}</a>
         {% else %}
-        <a class="btn btn-outline-info mb-4" href="{{ url_for('main.flow', page=page_num )}}">{{ page_num }}</a>
+        <a class="btn btn-outline-info mb-4" href="{{ url_for('main.payments', page=page_num )}}">{{ page_num }}</a>
         {% endif %}    
     {% else %}
     ...

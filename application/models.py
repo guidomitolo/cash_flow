@@ -3,6 +3,7 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 class User(db.Model, UserMixin):
 
     id = db.Column(db.Integer, primary_key=True)
@@ -23,9 +24,11 @@ class User(db.Model, UserMixin):
     def __repr__(self):
         return '<User {}>'.format(self.username)
 
+
 class Account(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     bank = db.Column(db.String(64))
     account_n = db.Column(db.String(120), index=True)
     timestamp = db.Column(db.DateTime, index=True)
@@ -33,7 +36,22 @@ class Account(db.Model):
     flow = db.Column(db.Integer, index=True)
     bal = db.Column(db.Integer, index=True)
     tag = db.Column(db.String(128), index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
         return '<Account {}>'.format(self.account_n)
+
+
+class Credit(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    bank = db.Column(db.String(64))
+    timestamp = db.Column(db.DateTime, index=True)
+    creditor = db.Column(db.String(128))  
+    share = db.Column(db.Integer, index=True)
+    ars = db.Column(db.Integer, index=True)
+    usd = db.Column(db.String(128), index=True)
+    tag = db.Column(db.String(128), index=True)
+
+    def __repr__(self):
+        return '<Credit {}>'.format(self.user_id)

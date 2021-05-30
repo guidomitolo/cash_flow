@@ -31,6 +31,24 @@
                 </ul>
             </p>
         </div>
+        <div class="content-section">
+            <h3>Tarjeta</h3>
+            <p class='text-muted'>
+                {% if credit %}
+                Deuda mensual al {{ date }}
+                <ul class="list-group">
+                    <li class="list-group-item list-group-item-light">
+                        <p style="display: block;"><b>BBVA</b></p>
+                        <p style="display: inline;">VISA</p>
+                        <p style="display: inline; float: right; color: red;">ARS {{ credit[1] }}</p>
+                        </p>
+                    </li>
+                {% else %}
+                No hay datos cargados
+                {% endif %}
+                </ul>
+            </p>
+        </div>
     </div>
 </div>
 {% endblock %}

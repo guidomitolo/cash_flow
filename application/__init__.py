@@ -41,7 +41,7 @@ def create_app(config_class=DevConfig):
         # inside this function is setted
         # which level message to show according to
         # flask's enviroment type
-        configure_logging(app)
+        # configure_logging(app)
 
         from application.auth import bp as auth_bp
         app.register_blueprint(auth_bp)
@@ -49,11 +49,11 @@ def create_app(config_class=DevConfig):
         from application.main import bp as main_bp
         app.register_blueprint(main_bp)
 
-        from application.models import User, Account
+        from application.models import User, Account, Credit
 
         @app.shell_context_processor
         def make_shell_context():
-            return {'db': db, 'User': User, 'Account': Account}
+            return {'db': db, 'User': User, 'Account': Account, 'Credit': Credit}
 
         @login_manager.user_loader
         def load_user(id):
