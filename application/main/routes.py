@@ -1,16 +1,16 @@
-from datetime import datetime
+from datetime import date, datetime
 import os
 
 from application import current_app as app
 from application import db
 from application.main import bp
 from application.main.helpers import load_movs, load_credit
-from application.main.models import Balance, Credit
+from application.main.models import Balance, Credit, CreditCard
 
 from flask import render_template, flash, redirect, url_for, request, session
 from flask_login import login_required, current_user
 
-from application.main.forms import FileSubmit, TagForm
+from application.main.forms import FileSubmit, TagForm, LoadCreditCard
 from wtforms import FieldList, FormField
 from flask_wtf import FlaskForm
 
@@ -44,11 +44,17 @@ def get_data(bank=None, page=None, start=None, end=None, tag=None, credit=None):
                         Credit.tag == tag,
                 )\
                 .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])    
-        else:
+        elif bank:
             return Credit.query\
                     .filter(
                         Credit.user_id == current_user.id,
                         Credit.bank == bank
+                    )\
+                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
+        else:
+            return Credit.query\
+                    .filter(
+                        Credit.user_id == current_user.id,
                     )\
                     .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
     else:
@@ -76,11 +82,17 @@ def get_data(bank=None, page=None, start=None, end=None, tag=None, credit=None):
                         Balance.tag == tag,
                 )\
                 .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])    
-        else:
+        elif bank:
             return Balance.query\
                     .filter(
                         Balance.user_id == current_user.id,
                         Balance.bank == bank
+                    )\
+                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
+        else:
+            return Balance.query\
+                    .filter(
+                        Balance.user_id == current_user.id,
                     )\
                     .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
 
@@ -157,33 +169,98 @@ def upload_credit():
 
     count = 0
     uploaded = None
+    cards = CreditCard.query.all()
 
-    form = FileSubmit()
+    form_trans = FileSubmit()
+    form_card = LoadCreditCard()
+
     if request.method == 'POST':
-        if form.validate_on_submit():
-            card = request.form.get('tarjeta')
-            card_number = request.form.get('numero')
-            expiration = request.form.get('vencimiento')
-            f = form.file.data
-            filename = secure_filename(f.filename)
-            save_path = os.path.join(app.config['UPLOAD_PATH'], filename)
-            f.save(save_path)
-            if form.upload.data:
-                try:
-                    uploaded = load_credit(save_path, card, card_number, expiration)
-                    if uploaded:
-                        flash('¡Carga exitosa!')
-                        app.logger.info('A new file has been uploaded.')
-                    else:
-                        flash('Estos registros ya han sido cargados')
-                except:
-                    flash('Hemos detectado un problema en la carga')
-                    app.logger.info('Parsing issue.')
+        if 'card_button' in request.form:
+            if form_card.validate_on_submit():
+                card = form_card.card.data
+                card_number = form_card.card_number.data
+                expiration = form_card.expiration.data
+                if cards:
+                    for card in cards:
+                        if card.card_number == card_number:
+                            flash('La tarjeta ya ha sido cargada')
+                            return redirect(url_for('main.upload_credit'))
+                flash('Usted ha cargado una nueva tarjeta')
+                credit_card = CreditCard(
+                    user_id = current_user.id,
+                    card_number = card_number,
+                    card = card,
+                    expiration = expiration,
+                )
+                db.session.add(credit_card)
+                db.session.commit()
+        else:
+            if form_trans.validate_on_submit():
+                f = form_trans.file.data
+                filename = secure_filename(f.filename)
+                save_path = os.path.join(app.config['UPLOAD_PATH'], filename)
+                f.save(save_path)
+                if form_trans.upload.data:
+                    try:
+                        uploaded = load_credit(save_path)
+                        if uploaded:
+                            flash('¡Carga exitosa!')
+                            app.logger.info('Carga Exitosa')
+                        else:
+                            flash('Estos registros ya han sido cargados')
+                    except:
+                        flash('Hemos detectado un problema en la carga')
+                        app.logger.info('Error de Lectura')
     
     if Credit.query.all():
         count = len(Credit.query.filter(Credit.user_id == current_user.id).with_entities(Credit.id).distinct().all())
 
-    return render_template('main/upload_credit.html', form=form, data=uploaded, count = count)
+    return render_template(
+        'main/upload_credit.html',
+        form = form_trans,
+        data = uploaded,
+        count = count,
+        cards = cards,
+        form_card = form_card
+        )
+
+
+@bp.route("/card_amount", methods=["GET","POST"])
+@login_required
+def card_amount():
+
+    sel_card = session['card'] 
+
+    page = request.args.get('page', 1, type=int)
+    if request.args.get('page', type=int):
+        page = request.args.get('page', 1, type=int)
+
+    flow = get_data(page=page, credit=True)
+    cards = CreditCard.query.all()
+    vendors = []
+    for card in flow.items:
+        vendors.append(CreditCard.query.filter_by(card_number = card.card_number).first().card)
+
+    if request.form.get('button_select'):
+        card = request.form.get('cards').split()[0]
+        card_number = request.form.get('cards').split()[1]
+        print(card, card_number)
+        sel_card = session['card'] = card        
+
+    if request.form.get('items_selected'):
+        for id in request.form.getlist('chk'):
+            item = Credit.query.filter_by(id = id).first()
+            item.card_number = session['number']
+            db.session.commit()
+
+    return render_template(
+        'main/card_amount.html',
+        data = flow,
+        cards = cards,
+        sel_card = sel_card,
+        vendors = vendors
+        )
+
 
 
 @bp.route("/flow", methods=["GET","POST"])

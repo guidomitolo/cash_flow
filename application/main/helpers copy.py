@@ -61,8 +61,9 @@ def check_db(data_input, signal):
         query = Credit.query.filter(Credit.user_id == current_user.id).all()
         all_db = None
         if query:
-            # all_db = [[line.bank, line.card, line.card_number, line.expiration, line.timestamp.date(), line.creditor, line.share, line.ars , float(line.usd) if line.usd != '0' else 0] for line in query]
-            all_db = [[line.bank, line.timestamp.date(), line.creditor, line.share, line.ars , float(line.usd) if line.usd != '0' else 0] for line in query]
+            # bancos, card, card_number, expiration, date, creditor, share, amount_ars, amount_usd
+            all_db = [[line.bank, line.card, line.card_number, line.expiration, line.timestamp.date(), line.creditor, line.share, line.ars , float(line.usd) if line.usd != '0' else 0] for line in query]
+            # all_db = [[line.bank, line.timestamp.date(), line.creditor, line.share, line.ars , float(line.usd) if line.usd != '0' else 0] for line in query]
 
         data_submitted = []
         for row_data in data_input[::-1]:
@@ -74,11 +75,14 @@ def check_db(data_input, signal):
                     account = Credit(
                         user_id= current_user.id,
                         bank= row_data[0],
-                        timestamp =  row_data[1],
-                        creditor= row_data[2],
-                        share= row_data[3],
-                        ars =  row_data[4],
-                        usd =  row_data[5],
+                        card = row_data[1],
+                        card_number = row_data[2],
+                        expiration = row_data[3],
+                        timestamp =  row_data[4],
+                        creditor= row_data[5],
+                        share= row_data[6],
+                        ars =  row_data[7],
+                        usd =  row_data[8],
                     )
                     db.session.add(account)
                     data_submitted.append(
@@ -89,17 +93,23 @@ def check_db(data_input, signal):
                             row_data[3],
                             row_data[4],
                             row_data[5],
+                            row_data[6],
+                            row_data[7],
+                            row_data[8],
                         ]
                     )
             else:
                 account = Credit(
                     user_id= current_user.id,
                     bank= row_data[0],
-                    timestamp =  row_data[1],
-                    creditor= row_data[2],
-                    share= row_data[3],
-                    ars =  row_data[4],
-                    usd =  row_data[5],
+                    card = row_data[1],
+                    card_number = row_data[2],
+                    expiration = row_data[3],
+                    timestamp =  row_data[4],
+                    creditor= row_data[5],
+                    share= row_data[6],
+                    ars =  row_data[7],
+                    usd =  row_data[8],
                 )
                 db.session.add(account)
                 data_submitted.append(
@@ -110,6 +120,9 @@ def check_db(data_input, signal):
                         row_data[3],
                         row_data[4],
                         row_data[5],
+                        row_data[6],
+                        row_data[7],
+                        row_data[8],
                     ]
                 )
     
@@ -133,6 +146,9 @@ def parse_data(account_num=None, table=None):
     share = []
     amount_ars = []
     amount_usd = []
+    card = []
+    card_number = []
+    expiration = []
     
     if account_num:
         if len(account_num) == 13:
@@ -146,6 +162,15 @@ def parse_data(account_num=None, table=None):
             
     # create column with dates if exists
     date += [date for date in table['Fecha'] if date != 'None']
+
+    if 'Card' in table.keys():
+        card += table['Card']
+
+    if 'Card_Number' in table.keys():
+        card_number += table['Card_Number']
+
+    if 'Expiration' in table.keys():
+        expiration += table['Expiration']  
 
     if 'Concepto' in table.keys():
         description += table['Concepto']
@@ -200,7 +225,7 @@ def parse_data(account_num=None, table=None):
         all_data = bancos, cuentas, date, description, flow, balance
         signal = 1
     else:
-        all_data = bancos, date, creditor, share, amount_ars, amount_usd
+        all_data = bancos, card, card_number, expiration, date, creditor, share, amount_ars, amount_usd
         signal = 0
 
     data_output = []
@@ -294,7 +319,7 @@ def load_movs(loaded_file):
 
 
 
-def load_credit(loaded_file):
+def load_credit(loaded_file, card=None, card_number=None, expiration=None):
 
     workbook = load_workbook(filename=loaded_file, data_only=True)
     sheet = workbook.active
@@ -344,5 +369,15 @@ def load_credit(loaded_file):
                     table[header[j]].append(dt.strptime(col.value, '%d/%m/%Y').date())
                 except:
                     table[header[j]].append(str(col.value).strip())
+
+    table['Card'] = [card for i in range(len(table['Fecha']))]
+    table['Card_Number'] = [card_number for i in range(len(table['Fecha']))]
+
+    if expiration:
+        date = dt.strptime(expiration, '%Y-%m-%d').strftime('%m/%d/%Y')
+        table['Expiration'] = [dt.strptime(date, '%m/%d/%Y').date() for i in range(len(table['Fecha']))]
+    else:
+        table['Expiration'] = [None for i in range(len(table['Fecha']))]
+
 
     return parse_data(table=table)

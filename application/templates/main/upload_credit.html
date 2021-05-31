@@ -8,15 +8,6 @@
       {{ form.csrf_token }}
       <small>Compatibilidad (v.1. beta) con BBVA</small>
       <p>
-        <label>Tarjeta</label>
-        <input type="text" name='tarjeta'>
-
-        <label>Nro. de Tarjeta</label>
-        <input type="number" name='numero'>
-
-        <label>Vecimiento</label>
-        <input type="date" name='vencimiento' placeholder="DD-MM-YYYY">
-
         {{ form.file(class="btn btn-outline-secondary mb-4") }}
         {{ form.upload(class="btn btn-outline-secondary mb-4") }}
 
@@ -26,6 +17,32 @@
       </p>
     </form>
   </div>
+  <div class="col-4">
+    <p>Cargar Tarjeta</p>
+    <form action="" method="post">
+      {{ form_card.csrf_token }}
+      <p>
+        {{ form_card.card.label }}
+        {{ form_card.card }}
+        {{ form_card.card_number.label }}
+        {{ form_card.card_number }}
+        {{ form_card.expiration.label }}
+        {{ form_card.expiration }}
+        {% for fieldName, errorMessages in form_card.errors.items() %}
+          <span style="color: red;">{{ errorMessages[0] }}</span>
+        {% endfor %}
+      </p>
+
+      <button type="submit" name="card_button" value="card">Cargar</button>
+    </form>
+  </div>
+  {% if cards %}
+  {% for card in cards%}
+  {{ card.card }}
+  {{ card.card_number }}
+  {{ card.expiration.date() }}
+  {% endfor %}
+  {% endif %}
   {% if data %}
   <table class="table table-sm" style='margin-top: 20px;'>
       <thead>

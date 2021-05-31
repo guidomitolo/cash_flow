@@ -1,0 +1,105 @@
+{% extends "base.html" %} 
+
+{% block content %}
+    <h2>Gastos</h2>
+    <h5 style="margin-bottom: 20px;">Selecciones banco y período</h5>
+    {% if cards %}
+    <form method="post">
+        <select name="cards">
+            {% for card in cards%}
+            <option name="card" value="{{ card.card }} {{ card.card_number }}">{{ card.card }} {{ card.card_number }}</option>
+            {% endfor %}            
+        </select>
+        <button type='submit' name="button_select" value="select">Elegir</button>
+        {% if sel_card %}
+        {{ sel_card}}
+        {% endif %}
+    </form>
+    {% endif %}
+
+    {% if data %}
+    <table class="table table-sm" style='margin-top: 20px;'>
+        <thead>
+            <tr>
+                <!-- <th style="text-align: center;">Elegir</th> -->
+                <th><input type="checkbox" onclick="selects()" id="check_all" name="check_all" value="all"></th>
+                <th style="text-align: center;">Banco</th>
+                <th style="text-align: center;">Tarjeta</th>
+                <th style="text-align: center;">Nro. de Tarjeta</th>
+                <th style="text-align: center;">Vencimiento</th>
+                <th style="text-align: center;">Fecha de consumo</th>
+                <th style="text-align: center;">Acreedor</th>
+                <th>Cuota</th>
+                <th>Importe en ARS</th>
+                <th style="text-align: center;">Importe en USD</th>
+                <th style="text-align: center;">Tag</th>
+            </tr>
+        </thead>
+        <form method="POST" id="select_items" novalidate>
+            <tbody>
+            {% for row in data.items %}
+                <tr>
+                    <td><input type="checkbox" id="item_{{ loop.index }}" name="chk" value="{{ row.id }}"></td>
+                    <td>{{ row.bank }}</td>
+                    {% if vendors %}
+                    <td>{{ vendors[loop.index] }}</td>
+                    {% else %}
+                    <td>-</td>
+                    {% endif %}
+                    <td>{{ row.card_number }}</td>
+                    <td>{{ row.expiration }}</td>
+                    <td>{{ row.timestamp.date() }}</td>
+                    <td>{{ row.creditor }}</td>
+                    {% if row.share  %}
+                    <td>{{ row.share }}</td>
+                    {% else %}
+                    <td>Única</td>
+                    {% endif %}
+                    <td>{{ row.ars }}</td>
+                    <td style="text-align: center;">{{ row.usd }}</td>
+                    {% if row.tag  %}
+                    <td>{{ row.tag }}</td>
+                    {% else %}
+                    <td></td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </form>
+    </table>
+    {% for page_num in data.iter_pages(left_edge = 1, right_edge=1, left_current=1, right_current=2 ) %}
+    {% if page_num %}
+        {% if page_num == data.page %}
+        <a class="btn btn-info mb-4" href="{{ url_for('main.card_amount', page=page_num )}}">{{ page_num }}</a>
+        {% else %}
+        <a class="btn btn-outline-info mb-4" href="{{ url_for('main.card_amount', page=page_num )}}">{{ page_num }}</a>
+        {% endif %}    
+    {% else %}
+    ...
+    {% endif %}
+    {% endfor %}
+
+    <button type="submit" value="items" form="select_items" name='items_selected'>Aplicar</button>
+
+    {% endif %}
+
+    <script type="text/javascript">
+        function selects() {
+            var checkBox = document.getElementById("check_all");
+            var box = document.getElementsByName('chk');
+
+            if (checkBox.checked == true){
+                for(var i=0; i<box.length; i++){  
+                    if(box[i].type=='checkbox')  
+                        box[i].checked=true;  
+                }                
+            } else {
+                for(var i=0; i<box.length; i++){  
+                    if(box[i].type=='checkbox')  
+                        box[i].checked=false;  
+                } 
+            }
+        }             
+    </script>  
+
+{% endblock %}
