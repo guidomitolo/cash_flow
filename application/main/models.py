@@ -11,6 +11,8 @@ class Balance(db.Model):
     flow = db.Column(db.Integer)
     bal = db.Column(db.Integer)
     tag = db.Column(db.String(128), index=True)
+    # relationship with balance card payment
+    card_payment = db.relationship('CreditPayments', backref='card_payed', lazy='dynamic')
 
     def __repr__(self):
         return '<Account nro. {}>'.format(self.account_n)
@@ -44,9 +46,10 @@ class Credit(db.Model):
     ars = db.Column(db.Float)
     usd = db.Column(db.Float)
     tag = db.Column(db.String(128), index=True)
+    item_payment = db.Column(db.Integer, db.ForeignKey('creditpayments.id'))
 
     def __repr__(self):
-        return '<Credit {}>'.format(self.user_id)
+        return '<Credit {}>'.format(self.id)
 
 
 class CreditPayments(db.Model):
@@ -56,8 +59,13 @@ class CreditPayments(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     card_number = db.Column(db.Integer, db.ForeignKey('creditcard.card_number'))
     due_date = db.Column(db.DateTime)
-    amount = db.Column(db.Float)
-    payed = db.Column(db.Boolean)
+    # id for card payments entries in balance
+    card_payment = db.Column(db.Integer, db.ForeignKey('balance.id'))
+
+    # id for items in card invoice
+    item_payment = db.relationship('Credit', backref='item_payed', lazy='dynamic')
+
+
 
     def __repr__(self):
-        return '<Credit {}>'.format(self.user_id)
+        return '<Payment {} {}>'.format(self.card_number, self.due_date.date())

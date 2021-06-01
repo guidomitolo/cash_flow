@@ -28,7 +28,7 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     ADMINS = os.environ.get('ADMINS')
 
-    ROWS_PER_PAGE = 10
+    ROWS_PER_PAGE = 15
 
 class ProdConfig(Config):
     ENV = 'production'

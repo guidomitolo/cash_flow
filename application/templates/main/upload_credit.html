@@ -36,13 +36,15 @@
       <button type="submit" name="card_button" value="card">Cargar</button>
     </form>
   </div>
+
   {% if cards %}
-  {% for card in cards%}
-  {{ card.card }}
-  {{ card.card_number }}
-  {{ card.expiration.date() }}
+  {% for card in cards %}
+    {{ card.card }}
+    {{ card.card_number }}
+    {{ card.expiration.date() }}
   {% endfor %}
   {% endif %}
+
   {% if data %}
   <table class="table table-sm" style='margin-top: 20px;'>
       <thead>

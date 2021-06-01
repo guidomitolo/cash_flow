@@ -1,0 +1,52 @@
+{% extends "base.html" %} 
+
+{% block content %}
+    <h5>Vencimientos Cancelados</h5>
+    {% if past_dues %}
+    <table class="table table-sm" style='margin-top: 20px;'>
+        <thead>
+            <tr>
+                <th style="text-align: center;">Banco</th>
+                <th style="text-align: center;">Tarjeta</th>
+                <th style="text-align: center;">Nro. de Tarjeta</th>
+                <th style="text-align: center;">Vencimiento</th>
+                <th style="text-align: center;">Monto</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for due in past_dues %}
+            <tr>
+                <td>{{ due.card_payed.bank }}</td>
+                <td>{{ due.payments.card }}</td>
+                <td>{{ due.card_number }}</td>
+                <td>{{ due.due_date.date() }}</td>
+                <td>{{ due.card_payed.flow }}</td>
+
+            <tr>
+            {% endfor%}
+        </tbody>
+    {% endif %}
+
+    {% if cards %}
+    <form method="post">
+        <select name="cards">
+            <option disabled selected value="">Tarjeta</option>
+            {% for card in cards%}
+            <option name="card" value="{{ card.card }} {{ card.card_number }}">{{ card.card }} {{ card.card_number }}</option>
+            {% endfor %}
+        </select>
+        {% if dates %}
+        <select name="dates">
+            <option disabled selected value="">Fecha</option>
+            {% for date in dates%}
+            <option name="date" value="{{ date }}">{{ date }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <button type='submit' name="button_select" value="select">Elegir</button>
+    </form>
+    {% else %}
+    <p>No hay tarjetas cargadas</p>
+    {% endif %}
+
+{% endblock %}

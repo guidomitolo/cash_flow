@@ -5,7 +5,7 @@ from application import current_app as app
 from application import db
 from application.main import bp
 from application.main.helpers import load_movs, load_credit
-from application.main.models import Balance, Credit, CreditCard
+from application.main.models import Balance, Credit, CreditCard, CreditPayments
 
 from flask import render_template, flash, redirect, url_for, request, session
 from flask_login import login_required, current_user
@@ -15,6 +15,8 @@ from wtforms import FieldList, FormField
 from flask_wtf import FlaskForm
 
 from werkzeug.utils import secure_filename
+
+from sqlalchemy import or_
 
 
 def get_data(bank=None, page=None, start=None, end=None, tag=None, credit=None):
@@ -177,7 +179,7 @@ def upload_credit():
     if request.method == 'POST':
         if 'card_button' in request.form:
             if form_card.validate_on_submit():
-                card = form_card.card.data
+                card_vendor = form_card.card.data
                 card_number = form_card.card_number.data
                 expiration = form_card.expiration.data
                 if cards:
@@ -185,15 +187,16 @@ def upload_credit():
                         if card.card_number == card_number:
                             flash('La tarjeta ya ha sido cargada')
                             return redirect(url_for('main.upload_credit'))
-                flash('Usted ha cargado una nueva tarjeta')
                 credit_card = CreditCard(
                     user_id = current_user.id,
                     card_number = card_number,
-                    card = card,
+                    card = card_vendor,
                     expiration = expiration,
                 )
                 db.session.add(credit_card)
                 db.session.commit()
+                flash('Usted ha cargado una nueva tarjeta')
+                return redirect(url_for("main.upload_credit"))
         else:
             if form_trans.validate_on_submit():
                 f = form_trans.file.data
@@ -225,11 +228,90 @@ def upload_credit():
         )
 
 
+@bp.route("/due_date", methods=["GET","POST"])
+@login_required
+def due_dates():
+
+    # crear funcion aparte para que lo cargue. fijarse si esta cargado balance y luego credit
+
+    flow = Balance.query.filter(
+            or_(
+                Balance.detail.like("CUENTA VISA%"), 
+                Balance.detail.like("CUENTA MASTERCARD%")
+            )
+        ).all()
+    cards = CreditCard.query.all()
+    dates = []
+
+    for row in flow:
+        if row.timestamp.date() not in dates:
+            dates.append(row.timestamp.date())
+        if row.tag is None:
+            row.tag = 'Pago Tarjeta'
+            db.session.commit()
+        for card in cards:
+            if card.card in row.detail:
+                if CreditPayments.query.filter(
+                    CreditPayments.due_date == row.timestamp,
+                    CreditPayments.card_payment == row.id
+                    ).first():
+                    pass
+                else:
+                    pagos = CreditPayments(
+                        user_id = current_user.id,
+                        card_number = card.card_number,
+                        due_date = row.timestamp.date(),
+                        card_payment = row.id,
+                    )
+                    db.session.add(pagos)
+                    db.session.commit()
+
+    # desafios:
+
+    # vincular vencimiento (en balance y payments) con gastos pasados (en credito)
+
+    # como sé qué gasto de tarjeta corresponde a qué vencimieto? 
+    # -> mirar el ultimo gasto antes del vencimiento, cuando dias de diferencia
+    # problema: no tengo fechas de gastos como referencia
+    # mirar fecha de cierre
+
+    # cómo calcular lo que queda pendiente de pagar en el mes (mas todo lo pendiente en cuotas a futurp)
+    # facil, lo posterior al ultimo vencimiento
+
+    past_dues = CreditPayments.query.order_by(CreditPayments.due_date).all()
+
+    if request.form.get('button_select'):
+        # arrange inputs
+        date_input = None
+        card = None
+
+        if request.form.get('cards'):
+            card = request.form.get('cards').split()[1]
+
+        if request.form.get('dates'):
+            date_input = datetime.strptime(request.form.get('dates'), "%Y-%m-%d")
+
+        # prepare query
+        if card and date_input:
+            past_dues = CreditPayments.query.filter_by(due_date=date_input, card_number=card).all()
+        elif date_input:
+            past_dues = CreditPayments.query.filter_by(due_date=date_input).all()
+        elif card:
+            past_dues = CreditPayments.query.filter_by(card_number=card).all()
+  
+    return render_template(
+        'main/due_date.html',
+        cards = cards,
+        past_dues = past_dues,
+        dates = dates
+        )
+
+
 @bp.route("/card_amount", methods=["GET","POST"])
 @login_required
 def card_amount():
 
-    sel_card = session['card'] 
+    sel_card = session.get('card_number') 
 
     page = request.args.get('page', 1, type=int)
     if request.args.get('page', type=int):
@@ -238,20 +320,32 @@ def card_amount():
     flow = get_data(page=page, credit=True)
     cards = CreditCard.query.all()
     vendors = []
-    for card in flow.items:
-        vendors.append(CreditCard.query.filter_by(card_number = card.card_number).first().card)
+    # print(flow.items[0].card_number)
+
+    # chequear que se hayan "atribuido los gastos a las tarjetas"
+    # no se puede que la atribucion sea automatica
+
+    # si se asignó nro. de tarjeta, recoger marcas de tarjeta
+    if flow.items:
+        if flow.items[0].card_number:
+            for card in flow.items:
+                vendor = CreditCard.query.filter_by(card_number = card.card_number).first()
+                if vendor:
+                    vendors.append(vendor.card)
 
     if request.form.get('button_select'):
-        card = request.form.get('cards').split()[0]
         card_number = request.form.get('cards').split()[1]
-        print(card, card_number)
-        sel_card = session['card'] = card        
+        sel_card = session['card_number'] = card_number
 
     if request.form.get('items_selected'):
-        for id in request.form.getlist('chk'):
-            item = Credit.query.filter_by(id = id).first()
-            item.card_number = session['number']
-            db.session.commit()
+        if sel_card:
+            for id in request.form.getlist('chk'):
+                item = Credit.query.filter_by(id = id).first()
+                item.card_number = session['card_number']
+                db.session.commit()
+            return redirect(url_for('main.card_amount'))
+        else:
+            flash('Seleccionar una Tarjeta')
 
     return render_template(
         'main/card_amount.html',
