@@ -6,6 +6,9 @@ from wtforms.fields.html5 import DateField
 
 from application.main.models import CreditCard
 
+from wtforms import FieldList, FormField
+from flask_wtf import FlaskForm
+
 
 class FileSubmit(FlaskForm):
     file = FileField('Archivo', validators=[FileAllowed(['xlsx'], 'Sólo xlsx'), FileRequired()])
@@ -26,3 +29,11 @@ class LoadCreditCard(FlaskForm):
         card = CreditCard.query.filter_by(card_number = card_number.data).first()
         if card is not None:
             raise ValidationError('Tarjeta existente')
+
+
+def tags_creator(rows):
+
+    class TagsList(FlaskForm):
+        tags = FieldList(FormField(TagForm), min_entries=rows)
+
+    return TagsList()

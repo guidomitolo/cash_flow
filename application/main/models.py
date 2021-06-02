@@ -38,6 +38,9 @@ class Credit(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    card_summary = db.Column(db.DateTime, index=True)
+    
     bank = db.Column(db.String(64))
     card_number = db.Column(db.Integer, db.ForeignKey('creditcard.card_number'))
     timestamp = db.Column(db.DateTime, index=True)
@@ -46,6 +49,7 @@ class Credit(db.Model):
     ars = db.Column(db.Float)
     usd = db.Column(db.Float)
     tag = db.Column(db.String(128), index=True)
+
     item_payment = db.Column(db.Integer, db.ForeignKey('creditpayments.id'))
 
     def __repr__(self):
@@ -61,7 +65,6 @@ class CreditPayments(db.Model):
     due_date = db.Column(db.DateTime)
     # id for card payments entries in balance
     card_payment = db.Column(db.Integer, db.ForeignKey('balance.id'))
-
     # id for items in card invoice
     item_payment = db.relationship('Credit', backref='item_payed', lazy='dynamic')
 

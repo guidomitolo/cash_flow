@@ -50,11 +50,12 @@
       <thead>
           <tr>
               <th style="text-align: center;">Banco</th>
-              <th style="text-align: center;">Cuenta</th>
-              <th style="text-align: center;">Fecha</th>
-              <th>Concepto</th>
-              <th>Flujo</th>
-              <th>Saldo</th>
+              <th style="text-align: center;">Consumo</th>
+              <th style="text-align: center;">Acreedor</th>
+              <th>Cuota</th>
+              <th>ARS</th>
+              <th>USD</th>
+              <th>Cierre</th>
           </tr>
       </thead>
       <tbody>
@@ -66,6 +67,7 @@
               <td>{{ row[3] }}</td>
               <td>{{ row[4] }}</td>
               <td>{{ row[5] }}</td>
+              <td>{{ row[6].date() }}</td>
           </tr>
       {% endfor %}
       </tbody>

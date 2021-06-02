@@ -7,8 +7,6 @@ from config import DevConfig, ProdConfig
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-# python default logging package
-# logs in console, file and mail
 import logging
 from logging.handlers import SMTPHandler, RotatingFileHandler
 

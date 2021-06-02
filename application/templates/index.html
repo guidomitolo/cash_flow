@@ -40,7 +40,7 @@
                     <li class="list-group-item list-group-item-light">
                         <p style="display: block;"><b>BBVA</b></p>
                         <p style="display: inline;">VISA</p>
-                        <p style="display: inline; float: right; color: red;">ARS {{ credit[1] }}</p>
+                        <p style="display: inline; float: right; color: red;">ARS {{ '%0.2f'| format(credit[1]|float) }}</p>
                         </p>
                     </li>
                 {% else %}

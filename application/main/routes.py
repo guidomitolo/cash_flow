@@ -1,136 +1,22 @@
-from datetime import date, datetime
+# basic libs
+from datetime import datetime
 import os
-
+# app objects
 from application import current_app as app
 from application import db
 from application.main import bp
-from application.main.helpers import load_movs, load_credit
 from application.main.models import Balance, Credit, CreditCard, CreditPayments
-
+from application.main.forms import FileSubmit, LoadCreditCard, tags_creator
+# add hoc functions
+from application.main.reader import load_movs, load_credit
+from application.main.queries import get_data, get_dates, tag_due_dates, classification, populate_payments
+# user management libs
 from flask import render_template, flash, redirect, url_for, request, session
 from flask_login import login_required, current_user
-
-from application.main.forms import FileSubmit, TagForm, LoadCreditCard
-from wtforms import FieldList, FormField
-from flask_wtf import FlaskForm
-
-from werkzeug.utils import secure_filename
-
+# db orm func
 from sqlalchemy import or_
-
-
-def get_data(bank=None, page=None, start=None, end=None, tag=None, credit=None):
-
-    if credit:
-        if start and end:
-            return Credit.query\
-                    .filter(
-                            Credit.user_id == current_user.id,
-                            Credit.bank == bank,
-                            Credit.timestamp >= datetime.strptime(start, "%Y-%m-%d"),
-                            Credit.timestamp <= datetime.strptime(end, "%Y-%m-%d"),
-                    )\
-                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-        elif start:
-            return Credit.query\
-                .filter(
-                        Credit.user_id == current_user.id,
-                        Credit.bank == bank,
-                        Credit.timestamp >= datetime.strptime(start, "%Y-%m-%d")
-                )\
-                .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-        elif tag:
-            return Credit.query\
-                .filter(
-                        Credit.user_id == current_user.id,
-                        Credit.tag == tag,
-                )\
-                .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])    
-        elif bank:
-            return Credit.query\
-                    .filter(
-                        Credit.user_id == current_user.id,
-                        Credit.bank == bank
-                    )\
-                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-        else:
-            return Credit.query\
-                    .filter(
-                        Credit.user_id == current_user.id,
-                    )\
-                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-    else:
-        if start and end:
-            return Balance.query\
-                    .filter(
-                            Balance.user_id == current_user.id,
-                            Balance.bank == bank,
-                            Balance.timestamp >= datetime.strptime(start, "%Y-%m-%d"),
-                            Balance.timestamp <= datetime.strptime(end, "%Y-%m-%d"),
-                    )\
-                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-        elif start:
-            return Balance.query\
-                .filter(
-                        Balance.user_id == current_user.id,
-                        Balance.bank == bank,
-                        Balance.timestamp >= datetime.strptime(start, "%Y-%m-%d")
-                )\
-                .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-        elif tag:
-            return Balance.query\
-                .filter(
-                        Balance.user_id == current_user.id,
-                        Balance.tag == tag,
-                )\
-                .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])    
-        elif bank:
-            return Balance.query\
-                    .filter(
-                        Balance.user_id == current_user.id,
-                        Balance.bank == bank
-                    )\
-                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-        else:
-            return Balance.query\
-                    .filter(
-                        Balance.user_id == current_user.id,
-                    )\
-                    .paginate(page=page, per_page=app.config['ROWS_PER_PAGE'])
-
-
-def get_dates(bank, start=None, credit=None):
-
-    if credit:
-        if bank and start:
-            return Credit.query.with_entities(Credit.timestamp) \
-                .filter(Credit.bank == bank, Credit.timestamp >= datetime.strptime(start, "%Y-%m-%d")) \
-                .order_by(Credit.timestamp) \
-                .distinct().all()
-        else:
-            return Credit.query.with_entities(Credit.timestamp) \
-                .filter(Credit.bank == bank) \
-                .order_by(Credit.timestamp) \
-                .distinct().all()
-    else:
-        if bank and start:
-            return Balance.query.with_entities(Balance.timestamp) \
-                .filter(Balance.bank == bank, Balance.timestamp >= datetime.strptime(start, "%Y-%m-%d")) \
-                .order_by(Balance.timestamp) \
-                .distinct().all()
-        else:
-            return Balance.query.with_entities(Balance.timestamp) \
-                .filter(Balance.bank == bank) \
-                .order_by(Balance.timestamp) \
-                .distinct().all()
-
-
-def tags_creator(rows):
-    
-    class TagsList(FlaskForm):
-        tags = FieldList(FormField(TagForm), min_entries=rows)
-
-    return TagsList()
+# file upload security
+from werkzeug.utils import secure_filename
 
 
 @bp.route('/upload_movs', methods=['GET', 'POST'])
@@ -153,6 +39,8 @@ def upload_movs():
                     if uploaded:
                         flash('Upload successful!')
                         app.logger.info('A new file has been uploaded.')
+                        # tag due dats
+                        tag_due_dates()
                     else:
                         flash('Estos registros ya han sido cargados')
                 except:
@@ -196,7 +84,8 @@ def upload_credit():
                 db.session.add(credit_card)
                 db.session.commit()
                 flash('Usted ha cargado una nueva tarjeta')
-                return redirect(url_for("main.upload_credit"))
+                # tag items
+                classification()
         else:
             if form_trans.validate_on_submit():
                 f = form_trans.file.data
@@ -232,65 +121,23 @@ def upload_credit():
 @login_required
 def due_dates():
 
-    # crear funcion aparte para que lo cargue. fijarse si esta cargado balance y luego credit
-
-    flow = Balance.query.filter(
-            or_(
-                Balance.detail.like("CUENTA VISA%"), 
-                Balance.detail.like("CUENTA MASTERCARD%")
-            )
-        ).all()
+    flow = Balance.query.filter_by(tag="Vencimiento Tarjeta").all()
+    populate_payments(flow)
     cards = CreditCard.query.all()
     dates = []
 
     for row in flow:
         if row.timestamp.date() not in dates:
             dates.append(row.timestamp.date())
-        if row.tag is None:
-            row.tag = 'Pago Tarjeta'
-            db.session.commit()
-        for card in cards:
-            if card.card in row.detail:
-                if CreditPayments.query.filter(
-                    CreditPayments.due_date == row.timestamp,
-                    CreditPayments.card_payment == row.id
-                    ).first():
-                    pass
-                else:
-                    pagos = CreditPayments(
-                        user_id = current_user.id,
-                        card_number = card.card_number,
-                        due_date = row.timestamp.date(),
-                        card_payment = row.id,
-                    )
-                    db.session.add(pagos)
-                    db.session.commit()
-
-    # desafios:
-
-    # vincular vencimiento (en balance y payments) con gastos pasados (en credito)
-
-    # como sé qué gasto de tarjeta corresponde a qué vencimieto? 
-    # -> mirar el ultimo gasto antes del vencimiento, cuando dias de diferencia
-    # problema: no tengo fechas de gastos como referencia
-    # mirar fecha de cierre
-
-    # cómo calcular lo que queda pendiente de pagar en el mes (mas todo lo pendiente en cuotas a futurp)
-    # facil, lo posterior al ultimo vencimiento
 
     past_dues = CreditPayments.query.order_by(CreditPayments.due_date).all()
 
     if request.form.get('button_select'):
         # arrange inputs
         date_input = None
-        card = None
-
-        if request.form.get('cards'):
-            card = request.form.get('cards').split()[1]
-
-        if request.form.get('dates'):
-            date_input = datetime.strptime(request.form.get('dates'), "%Y-%m-%d")
-
+        card = request.form.get('cards').split()[1]
+        if request.form.get('due_date'):
+            date_input = datetime.strptime(request.form.get('due_date'), "%Y-%m-%d").date()
         # prepare query
         if card and date_input:
             past_dues = CreditPayments.query.filter_by(due_date=date_input, card_number=card).all()
@@ -311,7 +158,8 @@ def due_dates():
 @login_required
 def card_amount():
 
-    sel_card = session.get('card_number') 
+    sel_date = session.get('due_date') 
+    sel_card = None
 
     page = request.args.get('page', 1, type=int)
     if request.args.get('page', type=int):
@@ -319,13 +167,9 @@ def card_amount():
 
     flow = get_data(page=page, credit=True)
     cards = CreditCard.query.all()
+    dues = db.session.query(CreditPayments.due_date).distinct().all()
     vendors = []
-    # print(flow.items[0].card_number)
 
-    # chequear que se hayan "atribuido los gastos a las tarjetas"
-    # no se puede que la atribucion sea automatica
-
-    # si se asignó nro. de tarjeta, recoger marcas de tarjeta
     if flow.items:
         if flow.items[0].card_number:
             for card in flow.items:
@@ -333,24 +177,46 @@ def card_amount():
                 if vendor:
                     vendors.append(vendor.card)
 
-    if request.form.get('button_select'):
+    if request.form.get('button_select_card'):
         card_number = request.form.get('cards').split()[1]
-        sel_card = session['card_number'] = card_number
+        session['card_number'] = card_number
+        sel_card = session['card_number']
+
+    # cierre 01/07 pago 12/07 - 11 dias - junio 30
+    # cierre 27/05 pago 07/06 - 11 dias - mayo 31
+    # cierre 29/04 pago 10/05 - 11 dias - abril 30
+    # cierre 31/03 pago 12/04 - 12 dias - marzo 31
+    # cierre 04/03 pago 15/03 - 11 dias - febrero 28
+    # cierre 28/01 pago 08/02 - 10 dias - enero 31
+
+    if request.form.get('button_select_date'):
+        sel_date = request.form.get('dues')
+        session['due_date'] = sel_date
 
     if request.form.get('items_selected'):
         if sel_card:
-            for id in request.form.getlist('chk'):
+            for id in request.form.getlist('chk_card'):
                 item = Credit.query.filter_by(id = id).first()
                 item.card_number = session['card_number']
                 db.session.commit()
+            return redirect(url_for('main.card_amount'))        
+        elif sel_date:
+            for id in request.form.getlist('chk_due'):
+                print(datetime.strptime(sel_date, "%Y-%m-%d") in dues)
+                print(dues)
+                item = Credit.query.filter_by(id = id).first()
+                item.item_payment = 1
+                db.session.commit()
             return redirect(url_for('main.card_amount'))
         else:
-            flash('Seleccionar una Tarjeta')
+            flash('Seleccionar alguna de las opciones')
 
     return render_template(
         'main/card_amount.html',
         data = flow,
         cards = cards,
+        dues = dues,
+        sel_date = sel_date,
         sel_card = sel_card,
         vendors = vendors
         )
@@ -461,6 +327,8 @@ def payments():
     e_dates = None
     tag_list = None
     selected_tag = None
+
+    classification()
 
     if Credit.query.all():
         bank_list = Credit.query.filter(Credit.user_id==current_user.id).with_entities(Credit.bank).distinct().all()

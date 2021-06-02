@@ -4,15 +4,32 @@
     <h2>Gastos</h2>
     <h5 style="margin-bottom: 20px;">Selecciones banco y período</h5>
     {% if cards %}
+    <p>Tarjetas cargadas</p>
     <form method="post">
         <select name="cards">
             {% for card in cards%}
             <option name="card" value="{{ card.card }} {{ card.card_number }}">{{ card.card }} {{ card.card_number }}</option>
             {% endfor %}            
         </select>
-        <button type='submit' name="button_select" value="select">Elegir</button>
+        <button type='submit' name="button_select_card" value="select">Elegir</button>
         {% if sel_card %}
         {{ sel_card}}
+        {% endif %}
+    </form>
+    {% else %}
+    <p>No hay tarjetas cargadas</p>
+    {% endif %}
+    {% if dues %}
+    <p>Vencimientos detectados</p>
+    <form method="post">
+        <select name="dues">
+            {% for due in dues%}
+            <option name="due" value="{{ due.due_date.date() }}">{{ due.due_date.date() }}</option>
+            {% endfor %}            
+        </select>
+        <button type='submit' name="button_select_date" value="select">Elegir</button>
+        {% if sel_date %}
+        {{ sel_date }}
         {% endif %}
     </form>
     {% else %}
@@ -25,18 +42,22 @@
             <tr>
                 <!-- <th style="text-align: center;">Elegir</th> -->
                 {% if cards %}
-                <th><input type="checkbox" onclick="selects()" id="check_all" name="check_all" value="all"></th>
+                <th><input type="checkbox" onclick="selects_card()" id="check_all_card" name="check_all_card" value="all"></th>
                 {% endif %}
-                <th style="text-align: center;">Banco</th>
                 <th style="text-align: center;">Tarjeta</th>
                 <th style="text-align: center;">Nro. de Tarjeta</th>
+                <th style="text-align: center;">Banco</th>
+                <th style="text-align: center;">Cierre</th>
+                {% if dues %}
+                <th><input type="checkbox" onclick="selects_due()" id="check_all_due" name="check_all_due" value="all"></th>
+                {% endif %}
                 <th style="text-align: center;">Vencimiento</th>
-                <th style="text-align: center;">Fecha de consumo</th>
+                <th style="text-align: center;">Consumo</th>
                 <th style="text-align: center;">Acreedor</th>
                 <th>Cuota</th>
-                <th>Importe en ARS</th>
-                <th style="text-align: center;">Importe en USD</th>
-                <th style="text-align: center;">Tag</th>
+                <th>ARS</th>
+                <th style="text-align: center;">USD</th>
+                <th style="text-align: center;">Concepto</th>
             </tr>
         </thead>
         <form method="POST" id="select_items" novalidate>
@@ -44,16 +65,28 @@
             {% for row in data.items %}
                 <tr>
                     {% if cards %}
-                    <td><input type="checkbox" id="item_{{ loop.index }}" name="chk" value="{{ row.id }}"></td>
+                    <td><input type="checkbox" id="item_{{ loop.index }}" name="chk_card" value="{{ row.id }}"></td>
                     {% endif %}
-                    <td>{{ row.bank }}</td>
                     {% if vendors %}
                     <td>{{ vendors[loop.index0] }}</td>
                     {% else %}
                     <td>-</td>
                     {% endif %}
                     <td>{{ row.card_number }}</td>
-                    <td>{{ row.expiration }}</td>
+                    <td>{{ row.bank }}</td>
+                    {% if row.card_summary  %}
+                    <td>{{ row.card_summary.date() }}</td>
+                    {% else %}
+                    <td>-</td>
+                    {% endif %}
+                    {% if dues %}
+                    <td><input type="checkbox" id="item_{{ loop.index }}" name="chk_due" value="{{ row.id }}"></td>
+                    {% endif %}
+                    {% if row.item_payed.due_date  %}
+                    <td>{{ row.item_payed.due_date.date() }}</td>
+                    {% else %}
+                    <td>-</td>
+                    {% endif %}
                     <td>{{ row.timestamp.date() }}</td>
                     <td>{{ row.creditor }}</td>
                     {% if row.share  %}
@@ -94,9 +127,9 @@
 
 
     <script type="text/javascript">
-        function selects() {
-            var checkBox = document.getElementById("check_all");
-            var box = document.getElementsByName('chk');
+        function selects_card() {
+            var checkBox = document.getElementById("check_all_card");
+            var box = document.getElementsByName('chk_card');
 
             if (checkBox.checked == true){
                 for(var i=0; i<box.length; i++){  
@@ -109,7 +142,23 @@
                         box[i].checked=false;  
                 } 
             }
-        }             
+        }
+        function selects_due() {
+            var checkBox = document.getElementById("check_all_due");
+            var box = document.getElementsByName('chk_due');
+
+            if (checkBox.checked == true){
+                for(var i=0; i<box.length; i++){  
+                    if(box[i].type=='checkbox')  
+                        box[i].checked=true;  
+                }                
+            } else {
+                for(var i=0; i<box.length; i++){  
+                    if(box[i].type=='checkbox')  
+                        box[i].checked=false;  
+                } 
+            }
+        }  
     </script>  
 
 {% endblock %}

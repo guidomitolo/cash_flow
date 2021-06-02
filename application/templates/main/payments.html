@@ -1,7 +1,7 @@
 {% extends "base.html" %} 
 
 {% block content %}
-    <h2>Pagos</h2>
+    <h2>Consumos</h2>
     <h5 style="margin-bottom: 20px;">Selecciones banco y período</h5>
     {% if banks %}
     <div class="col-8">
@@ -69,23 +69,31 @@
             <tr>
                 <th style="text-align: center;">Banco</th>
                 <th style="text-align: center;">Tarjeta</th>
-                <th style="text-align: center;">Nro. de Tarjeta</th>
-                <th style="text-align: center;">Vencimiento</th>
-                <th style="text-align: center;">Fecha de consumo</th>
+                <th style="text-align: center;">Nro. Tarjeta</th>
+                <th style="text-align: center;">Consumo</th>
                 <th style="text-align: center;">Acreedor</th>
                 <th>Cuota</th>
-                <th>Importe en ARS</th>
-                <th style="text-align: center;">Importe en USD</th>
-                <th style="text-align: center;">Tag</th>
+                <th>ARS</th>
+                <th style="text-align: center;">USD</th>
+                <th style="text-align: center;">Concepto</th>
+                <th style="text-align: center;">Cierre</th>
+                <th style="text-align: center;">Vencimiento</th>
             </tr>
         </thead>
         <tbody>
         {% for row in data.items %}
             <tr>
                 <td>{{ row.bank }}</td>
+                {% if row.card  %}
                 <td>{{ row.card }}</td>
+                {% else %}
+                <td>-</td>
+                {% endif %}
+                {% if row.card_number  %}
                 <td>{{ row.card_number }}</td>
-                <td>{{ row.expiration }}</td>
+                {% else %}
+                <td>-</td>
+                {% endif %}
                 <td>{{ row.timestamp.date() }}</td>
                 <td>{{ row.creditor }}</td>
                 {% if row.share  %}
@@ -98,7 +106,17 @@
                 {% if row.tag  %}
                 <td>{{ row.tag }}</td>
                 {% else %}
-                <td></td>
+                <td>-</td>
+                {% endif %}
+                {% if row.card_summary  %}
+                <td>{{ row.card_summary.date() }}</td>
+                {% else %}
+                <td>-</td>
+                {% endif %}
+                {% if row.item_payed.due_date  %}
+                <td>{{ row.item_payed.due_date.date() }}</td>
+                {% else %}
+                <td>-</td>
                 {% endif %}
             </tr>
         {% endfor %}
