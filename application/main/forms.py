@@ -10,8 +10,13 @@ from wtforms import FieldList, FormField
 from flask_wtf import FlaskForm
 
 
-class FileSubmit(FlaskForm):
-    file = FileField('Archivo', validators=[FileAllowed(['xlsx'], 'Sólo xlsx'), FileRequired()])
+class FileSubmitBalance(FlaskForm):
+    file = FileField('Archivo', validators=[FileAllowed(['xlsx'], 'Sólo XLSX'), FileRequired()])
+    upload = SubmitField('Subir')
+
+
+class FileSubmitCredit(FlaskForm):
+    file = FileField('Archivo', validators=[FileAllowed(['pdf'], 'Sólo PDF'), FileRequired()])
     upload = SubmitField('Subir')
 
 
@@ -21,12 +26,13 @@ class TagForm(Form):
 
 class LoadCreditCard(FlaskForm):
     card = StringField('Tarjeta', validators=[DataRequired()])
-    card_number = IntegerField('Número', validators=[DataRequired(message="Completar Campo"), validators.NumberRange(min=0, max=10, message="Número Incorrecto")])
+    bank = StringField('Banco', validators=[DataRequired()])
+    card_number = IntegerField('Número', validators=[DataRequired(message="Completar Campo"), validators.NumberRange(min=0, max=100000000, message="Número Incorrecto")])
     expiration = DateField('Vencimiento', validators=[DataRequired()])
 
     # password control in forms, not in routes/views
     def validate_card(self, card_number):
-        card = CreditCard.query.filter_by(card_number = card_number.data).first()
+        card = CreditCard.query.filter_by(number = card_number.data).first()
         if card is not None:
             raise ValidationError('Tarjeta existente')
 

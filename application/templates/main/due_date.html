@@ -6,22 +6,19 @@
     <table class="table table-sm" style='margin-top: 20px;'>
         <thead>
             <tr>
-                <th style="text-align: center;">Banco</th>
-                <th style="text-align: center;">Tarjeta</th>
-                <th style="text-align: center;">Nro. de Tarjeta</th>
+                <th style="text-align: center;">Cierre</th>
                 <th style="text-align: center;">Vencimiento</th>
-                <th style="text-align: center;">Monto</th>
+                <th style="text-align: center;">ARS</th>
+                <th style="text-align: center;">USD</th>
             </tr>
         </thead>
         <tbody>
             {% for due in past_dues %}
             <tr>
-                <td>{{ due.card_payed.bank }}</td>
-                <td>{{ due.payments.card }}</td>
-                <td>{{ due.card_number }}</td>
+                <td>{{ due.close_date.date() }}</td>
                 <td>{{ due.due_date.date() }}</td>
-                <td>{{ due.card_payed.flow }}</td>
-
+                <td>{{ due.ars }}</td>
+                <td>{{ due.usd }}</td>
             <tr>
             {% endfor%}
         </tbody>

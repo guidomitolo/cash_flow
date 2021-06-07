@@ -5,11 +5,12 @@ import os
 from application import current_app as app
 from application import db
 from application.main import bp
-from application.main.models import Balance, Credit, CreditCard, CreditPayments
-from application.main.forms import FileSubmit, LoadCreditCard, tags_creator
+from application.main.models import Balance, Credit, CreditCard, CreditStatement
+from application.main.forms import FileSubmitCredit, FileSubmitBalance, LoadCreditCard, tags_creator
 # add hoc functions
-from application.main.reader import load_movs, load_credit
-from application.main.queries import get_data, get_dates, tag_due_dates, classification, populate_payments
+from application.main.reader_balance import load_movs
+from application.main.reader_credit import load_PDF
+from application.main.queries import get_data, get_credit, get_dates, tag_due_dates, classification, balance_card_payments, add_credit_card
 # user management libs
 from flask import render_template, flash, redirect, url_for, request, session
 from flask_login import login_required, current_user
@@ -17,6 +18,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_
 # file upload security
 from werkzeug.utils import secure_filename
+
+from application.main.reader_credit import load_PDF
 
 
 @bp.route('/upload_movs', methods=['GET', 'POST'])
@@ -26,7 +29,7 @@ def upload_movs():
     count = 0
     uploaded = None
 
-    form = FileSubmit()
+    form = FileSubmitBalance()
     if request.method == 'POST':
         if form.validate_on_submit():
             f = form.file.data
@@ -35,6 +38,7 @@ def upload_movs():
             f.save(save_path)
             if form.upload.data:
                 try:
+                    # uploaded = load_movs(save_path)
                     uploaded = load_movs(save_path)
                     if uploaded:
                         flash('Upload successful!')
@@ -58,11 +62,17 @@ def upload_movs():
 def upload_credit():
 
     count = 0
-    uploaded = None
+    transactions = None
+    close_date = None
+    due_date = None
+    taxes = None
+
     cards = CreditCard.query.all()
 
-    form_trans = FileSubmit()
+    form_trans = FileSubmitCredit()
     form_card = LoadCreditCard()
+
+    add_credit_card()
 
     if request.method == 'POST':
         if 'card_button' in request.form:
@@ -70,21 +80,25 @@ def upload_credit():
                 card_vendor = form_card.card.data
                 card_number = form_card.card_number.data
                 expiration = form_card.expiration.data
+                bank = form_card.bank.data
                 if cards:
                     for card in cards:
-                        if card.card_number == card_number:
+                        if card.number == card_number:
                             flash('La tarjeta ya ha sido cargada')
                             return redirect(url_for('main.upload_credit'))
                 credit_card = CreditCard(
                     user_id = current_user.id,
-                    card_number = card_number,
-                    card = card_vendor,
+                    number = card_number,
+                    vendor = card_vendor,
                     expiration = expiration,
+                    bank =  bank
                 )
                 db.session.add(credit_card)
                 db.session.commit()
                 flash('Usted ha cargado una nueva tarjeta')
-                # tag items
+                # add card number if match with card_code
+                add_credit_card()
+                # add debt type
                 classification()
         else:
             if form_trans.validate_on_submit():
@@ -94,8 +108,12 @@ def upload_credit():
                 f.save(save_path)
                 if form_trans.upload.data:
                     try:
-                        uploaded = load_credit(save_path)
+                        uploaded = load_PDF(save_path)
                         if uploaded:
+                            transactions = uploaded[0]
+                            close_date = uploaded[3]
+                            due_date = uploaded[2]
+                            taxes = uploaded[1]
                             flash('¡Carga exitosa!')
                             app.logger.info('Carga Exitosa')
                         else:
@@ -110,7 +128,10 @@ def upload_credit():
     return render_template(
         'main/upload_credit.html',
         form = form_trans,
-        data = uploaded,
+        data = transactions,
+        close_date = close_date,
+        due_date = due_date,
+        taxes = taxes,
         count = count,
         cards = cards,
         form_card = form_card
@@ -121,8 +142,9 @@ def upload_credit():
 @login_required
 def due_dates():
 
-    flow = Balance.query.filter_by(tag="Vencimiento Tarjeta").all()
-    populate_payments(flow)
+    flow = Balance.query.filter_by(type="Vencimiento Tarjeta").all()
+    balance_card_payments()
+
     cards = CreditCard.query.all()
     dates = []
 
@@ -130,21 +152,7 @@ def due_dates():
         if row.timestamp.date() not in dates:
             dates.append(row.timestamp.date())
 
-    past_dues = CreditPayments.query.order_by(CreditPayments.due_date).all()
-
-    if request.form.get('button_select'):
-        # arrange inputs
-        date_input = None
-        card = request.form.get('cards').split()[1]
-        if request.form.get('due_date'):
-            date_input = datetime.strptime(request.form.get('due_date'), "%Y-%m-%d").date()
-        # prepare query
-        if card and date_input:
-            past_dues = CreditPayments.query.filter_by(due_date=date_input, card_number=card).all()
-        elif date_input:
-            past_dues = CreditPayments.query.filter_by(due_date=date_input).all()
-        elif card:
-            past_dues = CreditPayments.query.filter_by(card_number=card).all()
+    past_dues = CreditStatement.query.order_by(CreditStatement.due_date).all()
   
     return render_template(
         'main/due_date.html',
@@ -152,75 +160,6 @@ def due_dates():
         past_dues = past_dues,
         dates = dates
         )
-
-
-@bp.route("/card_amount", methods=["GET","POST"])
-@login_required
-def card_amount():
-
-    sel_date = session.get('due_date') 
-    sel_card = None
-
-    page = request.args.get('page', 1, type=int)
-    if request.args.get('page', type=int):
-        page = request.args.get('page', 1, type=int)
-
-    flow = get_data(page=page, credit=True)
-    cards = CreditCard.query.all()
-    dues = db.session.query(CreditPayments.due_date).distinct().all()
-    vendors = []
-
-    if flow.items:
-        if flow.items[0].card_number:
-            for card in flow.items:
-                vendor = CreditCard.query.filter_by(card_number = card.card_number).first()
-                if vendor:
-                    vendors.append(vendor.card)
-
-    if request.form.get('button_select_card'):
-        card_number = request.form.get('cards').split()[1]
-        session['card_number'] = card_number
-        sel_card = session['card_number']
-
-    # cierre 01/07 pago 12/07 - 11 dias - junio 30
-    # cierre 27/05 pago 07/06 - 11 dias - mayo 31
-    # cierre 29/04 pago 10/05 - 11 dias - abril 30
-    # cierre 31/03 pago 12/04 - 12 dias - marzo 31
-    # cierre 04/03 pago 15/03 - 11 dias - febrero 28
-    # cierre 28/01 pago 08/02 - 10 dias - enero 31
-
-    if request.form.get('button_select_date'):
-        sel_date = request.form.get('dues')
-        session['due_date'] = sel_date
-
-    if request.form.get('items_selected'):
-        if sel_card:
-            for id in request.form.getlist('chk_card'):
-                item = Credit.query.filter_by(id = id).first()
-                item.card_number = session['card_number']
-                db.session.commit()
-            return redirect(url_for('main.card_amount'))        
-        elif sel_date:
-            for id in request.form.getlist('chk_due'):
-                print(datetime.strptime(sel_date, "%Y-%m-%d") in dues)
-                print(dues)
-                item = Credit.query.filter_by(id = id).first()
-                item.item_payment = 1
-                db.session.commit()
-            return redirect(url_for('main.card_amount'))
-        else:
-            flash('Seleccionar alguna de las opciones')
-
-    return render_template(
-        'main/card_amount.html',
-        data = flow,
-        cards = cards,
-        dues = dues,
-        sel_date = sel_date,
-        sel_card = sel_card,
-        vendors = vendors
-        )
-
 
 
 @bp.route("/flow", methods=["GET","POST"])
@@ -239,7 +178,7 @@ def flow():
 
     if Balance.query.all():
         bank_list = Balance.query.filter(Balance.user_id==current_user.id).with_entities(Balance.bank).distinct().all()
-        tag_list = Balance.query.filter(Balance.tag != None, Balance.tag != '').with_entities(Balance.tag).distinct().all()
+        tag_list = Balance.query.filter(Balance.type != None, Balance.type != '').with_entities(Balance.type).distinct().all()
 
     if request.form.get("type"):
         selected_tag = request.form.get("type")
@@ -314,114 +253,90 @@ def flow():
         )
 
 
-@bp.route("/payments", methods=["GET","POST"])
-@login_required
-def payments():
-
-    flow = None
-    bank_list = None
-    bank = None
-    start_date = None
-    end_date = None
-    s_dates = None
-    e_dates = None
-    tag_list = None
-    selected_tag = None
-
-    classification()
-
-    if Credit.query.all():
-        bank_list = Credit.query.filter(Credit.user_id==current_user.id).with_entities(Credit.bank).distinct().all()
-        tag_list = Credit.query.filter(Credit.tag != None, Credit.tag != '').with_entities(Credit.tag).distinct().all()
-
-    if request.form.get("type"):
-        selected_tag = request.form.get("type")
-        tag = session['tag'] = request.form.get("type")
-        page = session['page'] = request.args.get('page', 1, type=int)
-        flow = get_data(bank, tag=tag, credit=True)
-
-    if request.form.get("bank"):
-        bank = session['bank'] = request.form.get("bank")
-        page = session['page'] = request.args.get('page', 1, type=int)
-        flow = get_data(bank, page, credit=True)
-        s_dates = get_dates(bank, credit=True)
-
-        session['submit'] = 1
-    
-    if request.form.get('start_date'):
-        bank = session.get("bank")
-        page = request.args.get('page', 1, type=int)
-        session['start_date'] = request.form.get("start_date")
-        start_date = session.get("start_date")
-        flow = get_data(bank, page, start_date)
-        s_dates = get_dates(bank, credit=True)
-        e_dates = get_dates(bank, start_date, credit=True)
-
-        session['submit'] = 2
-    
-    if request.form.get('end_date'):
-        bank = session.get("bank")
-        page = request.args.get('page', 1, type=int)
-        start_date = session['start_date']
-        session['end_date'] = request.form.get('end_date')
-        end_date = session.get('end_date')
-        flow = get_data(bank, page, start_date, end_date, credit=True)
-        s_dates = get_dates(bank, credit=True)
-        e_dates = get_dates(bank, start_date, credit=True)
-
-        session['submit'] = 3
-
-    if request.args.get('page', type=int):
-
-        page = request.args.get('page', type=int)
-        
-        if session.get('submit') == 1:
-            bank = session.get('bank')
-            s_dates = get_dates(bank, credit=True)
-            flow = get_data(bank, page, credit=True)
-        elif session.get('submit') == 2:
-            bank = session.get('bank')
-            start_date = session.get('start_date')
-            s_dates = get_dates(bank, credit=True)
-            e_dates = get_dates(bank, start_date, credit=True)
-            flow = get_data(bank, page, start_date, credit=True)
-        else:
-            bank = session.get('bank')
-            start_date = session.get('start_date')
-            s_dates = get_dates(bank, credit=True)
-            e_dates = get_dates(bank, start_date, credit=True)
-            flow = get_data(bank, page, start_date, credit=True)
-            end_date = session.get('end_date')
-            flow = get_data(bank, page, start_date, end_date, credit=True)
-    
-    return render_template("main/payments.html", 
-        banks=bank_list,
-        bank=bank,
-        data=flow,
-        start_date=start_date,
-        end_date=end_date,
-        e_dates=e_dates,
-        s_dates = s_dates,
-        tag_list = tag_list,
-        selected_tag = selected_tag
-        )
-
-
 @bp.route("/tag_table/<string:type>", methods=["GET","POST"])
 @login_required
 def tag(type):
+
     session['bank'] = None
     session['start_date'] = None
     session['end_date'] = None
     session['submit'] = None
+    session['due_date'] = None
+    session['card_number'] = None
+    session['credit_type'] = None
+  
     if type == 'flow':
-        return redirect(url_for('main.tag_table'))
+        return redirect(url_for('main.tag_balance'))
     else:
-        return redirect(url_for('main.tag_credit'))
+        return redirect(url_for('main.card_amount'))
 
-@bp.route("/tag/flow", methods=["GET","POST"])
+
+
+@bp.route("/card_amount", methods=["GET","POST"])
 @login_required
-def tag_table():
+def card_amount():
+
+    sel_date = session.get('due_date') 
+    sel_card = session.get('card_number')
+    sel_type = session.get('credit_type') 
+
+    page = request.args.get('page', 1, type=int)
+    if request.args.get('page', type=int):
+        page = request.args.get('page', 1, type=int)
+
+    flow = get_credit(page=page)
+    cards = CreditCard.query.all()
+    dues = db.session.query(CreditStatement.due_date).distinct().all()
+    types = db.session.query(Credit.type).distinct().all()
+
+    if request.form.get('button_select_card'):
+        card_number = request.form.get('cards').split()[1]
+        session['card_number'] = card_number
+        flow = get_credit(
+            page=page, 
+            card_number=card_number, 
+            due_date = session.get('due_date')
+        )
+
+    if request.form.get('button_select_date'):
+        sel_date = datetime.strptime(request.form.get('dues'), "%Y-%m-%d")
+        session['due_date'] = sel_date
+        flow = get_credit(
+            page=page, 
+            due_date = sel_date, 
+            card_number=session.get('card_number')
+        )
+
+    if request.form.get('button_select_type'):
+        sel_type = request.form.get('types')
+        session['credit_type'] = sel_type
+        flow = get_credit(
+            page=page, 
+            type = sel_type,
+        )
+
+    if request.form.get('items_selected'):
+        for id in request.form.getlist('chk_type'):
+            print(id)
+        return redirect(url_for('main.card_amount'))
+
+
+    return render_template(
+        'main/card_amount.html',
+        data = flow,
+        cards = cards,
+        dues = dues,
+        types = types,
+        sel_type = sel_type,
+        sel_date = sel_date,
+        sel_card = sel_card,
+        )
+
+
+
+@bp.route("/flow", methods=["GET","POST"])
+@login_required
+def tag_balance():
 
     bank = None
     start_date = None
@@ -463,7 +378,7 @@ def tag_table():
         s_dates = get_dates(session.get('bank'))
     
         flow = get_data(bank, page)
-        tags = [line.tag if line.tag != None else '' for line in flow.items]
+        tags = [line.type if line.type != None else '' for line in flow.items]
         form = tags_creator(len(flow.items))
 
         if 'tag_1' in request.form:
@@ -471,7 +386,7 @@ def tag_table():
                 for tag, row in zip(form.tags, flow.items):
                     row.tag = tag.data['tag']
             db.session.commit()
-            tags = [line.tag if line.tag != None else '' for line in flow.items]
+            tags = [line.type if line.type != None else '' for line in flow.items]
 
     elif session.get("submit") == 2:
         # get params
@@ -483,7 +398,7 @@ def tag_table():
 
         # get data
         flow = get_data(bank, page, start_date)
-        tags = [line.tag if line.tag != None else '' for line in flow.items]
+        tags = [line.type if line.type != None else '' for line in flow.items]
         # make form
         form = tags_creator(len(flow.items))
 
@@ -492,7 +407,7 @@ def tag_table():
                 for tag, row in zip(form.tags, flow.items):
                     row.tag = tag.data['tag']
             db.session.commit()
-            tags = [line.tag if line.tag != None else '' for line in flow.items]
+            tags = [line.type if line.type != None else '' for line in flow.items]
 
     elif session.get("submit") == 3:
         # get params
@@ -505,7 +420,7 @@ def tag_table():
         e_dates = get_dates(bank, start_date)
         # get data
         flow = get_data(bank, page, start_date, end_date)
-        tags = [line.tag if line.tag != None else '' for line in flow.items]
+        tags = [line.type if line.type != None else '' for line in flow.items]
         # make form
         form = tags_creator(len(flow.items))
 
@@ -514,121 +429,9 @@ def tag_table():
                 for tag, row in zip(form.tags, flow.items):
                     row.tag = tag.data['tag']
             db.session.commit()
-            tags = [line.tag if line.tag != None else '' for line in flow.items]
+            tags = [line.type if line.type != None else '' for line in flow.items]
 
     return render_template("main/tag_table.html", 
-        banks=bank_list,
-        bank=bank,
-        start_date=start_date,
-        end_date=end_date,
-        e_dates=e_dates,
-        s_dates = s_dates,
-        submit = session.get('submit'),
-        data=flow,
-        tags=tags,
-        form=form,
-        value=tags,
-        )
-
-
-@bp.route("/tag/credit", methods=["GET","POST"])
-@login_required
-def tag_credit():
-
-    bank = None
-    start_date = None
-    end_date = None
-    flow=None
-    tags=None
-    form=None
-    s_dates = None
-    e_dates = None
-
-    bank_list = None
-    if Credit.query.all():
-        bank_list = Credit.query.filter(Credit.user_id==current_user.id).with_entities(Credit.bank).distinct().all()
-
-    page = request.args.get('page', 1, type=int)
-
-    if request.form.get("bank"):
-        # get bank and save it in session
-        session['bank'] = bank = request.form.get("bank")
-        # save button
-        session['submit'] = submit = 1
-
-    if request.form.get('start_date'):
-        # get start date and save it in session
-        session['start_date'] = request.form.get("start_date")
-        # save button
-        session['submit'] = submit = 2
-    
-    if request.form.get('end_date'):
-        # get end date and save it in session
-        session['end_date'] = request.form.get('end_date')
-        # save button
-        session['submit'] = submit = 3
-
-    if session.get("submit") == 1:
-        # get params        
-        bank = session.get('bank')
-        # get all dates
-        s_dates = get_dates(session.get('bank'), credit=True)
-    
-        flow = get_data(bank, page, credit=True)
-        tags = [line.tag if line.tag != None else '' for line in flow.items]
-        form = tags_creator(len(flow.items))
-
-        if 'tag_1' in request.form:
-            if form.validate_on_submit():
-                for tag, row in zip(form.tags, flow.items):
-                    row.tag = tag.data['tag']
-            db.session.commit()
-            tags = [line.tag if line.tag != None else '' for line in flow.items]
-
-    elif session.get("submit") == 2:
-        # get params
-        bank = session.get('bank')
-        start_date = session.get('start_date')
-        # get dates
-        s_dates = get_dates(bank, credit=True)
-        e_dates = get_dates(bank, start_date, credit=True)
-
-        # get data
-        flow = get_data(bank, page, start_date, credit=True)
-        tags = [line.tag if line.tag != None else '' for line in flow.items]
-        # make form
-        form = tags_creator(len(flow.items))
-
-        if 'tag_2' in request.form:
-            if form.validate_on_submit():
-                for tag, row in zip(form.tags, flow.items):
-                    row.tag = tag.data['tag']
-            db.session.commit()
-            tags = [line.tag if line.tag != None else '' for line in flow.items]
-
-    elif session.get("submit") == 3:
-        # get params
-        bank = session.get('bank')
-        start_date = session.get('start_date')
-        end_date = session.get('end_date')
-
-        # get dates
-        s_dates = get_dates(bank, credit=True)
-        e_dates = get_dates(bank, start_date, credit=True)
-        # get data
-        flow = get_data(bank, page, start_date, end_date, credit=True)
-        tags = [line.tag if line.tag != None else '' for line in flow.items]
-        # make form
-        form = tags_creator(len(flow.items))
-
-        if 'tag_3' in request.form:
-            if form.validate_on_submit():
-                for tag, row in zip(form.tags, flow.items):
-                    row.tag = tag.data['tag']
-            db.session.commit()
-            tags = [line.tag if line.tag != None else '' for line in flow.items]
-
-    return render_template("main/tag_table_credit.html", 
         banks=bank_list,
         bank=bank,
         start_date=start_date,

@@ -1,0 +1,4 @@
+### Cash Flow App
+(in progress)
+
+#### Python-Flask web app that parses Santander Rio and BBVA banks XLSX cash flow balances and VISA PDF credit statements. The data is stored amid six different tables in a Postgres database and related to each other to aboid inconsistency or repetitions. The human is able to upload his/her credit cards and to add or change categories to classify types of expeditures. Cash movements (debit or credit) can be grouped, classify and visualized in a clear and apprehensible way to understand cash in-out flows and quickly see where is it necessary to cut spendings or possible to save more money.

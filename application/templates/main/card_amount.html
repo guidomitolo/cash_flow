@@ -8,7 +8,7 @@
     <form method="post">
         <select name="cards">
             {% for card in cards%}
-            <option name="card" value="{{ card.card }} {{ card.card_number }}">{{ card.card }} {{ card.card_number }}</option>
+            <option name="card" value="{{ card.vendor }} {{ card.number }}">{{ card.vendor }} {{ card.number }}</option>
             {% endfor %}            
         </select>
         <button type='submit' name="button_select_card" value="select">Elegir</button>
@@ -20,7 +20,7 @@
     <p>No hay tarjetas cargadas</p>
     {% endif %}
     {% if dues %}
-    <p>Vencimientos detectados</p>
+    <p>Vencimientos</p>
     <form method="post">
         <select name="dues">
             {% for due in dues%}
@@ -29,7 +29,26 @@
         </select>
         <button type='submit' name="button_select_date" value="select">Elegir</button>
         {% if sel_date %}
-        {{ sel_date }}
+        {{ sel_date.date() }}
+        {% endif %}
+    </form>
+    {% else %}
+    <p>No hay tarjetas cargadas</p>
+    {% endif %}
+
+    {% if types %}
+    <p>Conceptos</p>
+    <form method="post">
+        <select name="types">
+            {% for type in types %}
+            {% if type.type != None %}
+            <option name="type" value="{{ type.type }}">{{ type.type }}</option>
+            {% endif %}
+            {% endfor %}            
+        </select>
+        <button type='submit' name="button_select_type" value="select">Elegir</button>
+        {% if sel_type %}
+        {{ sel_type }}
         {% endif %}
     </form>
     {% else %}
@@ -40,66 +59,65 @@
     <table class="table table-sm" style='margin-top: 20px;'>
         <thead>
             <tr>
-                <!-- <th style="text-align: center;">Elegir</th> -->
-                {% if cards %}
-                <th><input type="checkbox" onclick="selects_card()" id="check_all_card" name="check_all_card" value="all"></th>
-                {% endif %}
                 <th style="text-align: center;">Tarjeta</th>
-                <th style="text-align: center;">Nro. de Tarjeta</th>
+                <th style="text-align: center;">Nro.</th>
                 <th style="text-align: center;">Banco</th>
-                <th style="text-align: center;">Cierre</th>
-                {% if dues %}
-                <th><input type="checkbox" onclick="selects_due()" id="check_all_due" name="check_all_due" value="all"></th>
-                {% endif %}
-                <th style="text-align: center;">Vencimiento</th>
+
                 <th style="text-align: center;">Consumo</th>
                 <th style="text-align: center;">Acreedor</th>
                 <th>Cuota</th>
-                <th>ARS</th>
-                <th style="text-align: center;">USD</th>
+                <th>Moneda</th>
+                <th style="text-align: center;">Pago</th>
+                {% if dues %}
+                <th><input type="checkbox" onclick="selects_type()" id="check_all_types" name="check_all_types" value="all"></th>
+                {% endif %}
                 <th style="text-align: center;">Concepto</th>
+                <th style="text-align: center;">Vencimiento</th>
+
             </tr>
         </thead>
         <form method="POST" id="select_items" novalidate>
             <tbody>
             {% for row in data.items %}
                 <tr>
-                    {% if cards %}
-                    <td><input type="checkbox" id="item_{{ loop.index }}" name="chk_card" value="{{ row.id }}"></td>
-                    {% endif %}
-                    {% if vendors %}
-                    <td>{{ vendors[loop.index0] }}</td>
+                    {% if row.transactions.vendor %}
+                    <td>{{ row.transactions.vendor }}</td>
                     {% else %}
                     <td>-</td>
                     {% endif %}
+
                     <td>{{ row.card_number }}</td>
-                    <td>{{ row.bank }}</td>
-                    {% if row.card_summary  %}
-                    <td>{{ row.card_summary.date() }}</td>
+
+                    {% if row.transactions.bank %}
+                    <td>{{ row.transactions.bank }}</td>
                     {% else %}
                     <td>-</td>
                     {% endif %}
-                    {% if dues %}
-                    <td><input type="checkbox" id="item_{{ loop.index }}" name="chk_due" value="{{ row.id }}"></td>
-                    {% endif %}
-                    {% if row.item_payed.due_date  %}
-                    <td>{{ row.item_payed.due_date.date() }}</td>
-                    {% else %}
-                    <td>-</td>
-                    {% endif %}
+    
                     <td>{{ row.timestamp.date() }}</td>
-                    <td>{{ row.creditor }}</td>
+
+                    <td>{{ row.transaction }}</td>
+
                     {% if row.share  %}
                     <td>{{ row.share }}</td>
                     {% else %}
                     <td>Única</td>
                     {% endif %}
-                    <td>{{ row.ars }}</td>
-                    <td style="text-align: center;">{{ row.usd }}</td>
-                    {% if row.tag  %}
-                    <td>{{ row.tag }}</td>
+
+                    <td>{{ row.currency }}</td>
+                    <td style="text-align: center;">{{ row.purchase }}</td>
+
+                    <td><input type="checkbox" id="item_{{ loop.index }}" name="chk_type" value="{{ row.id }}"></td>
+                    {% if row.type  %}
+                    <td>{{ row.type }}</td>
                     {% else %}
                     <td></td>
+                    {% endif %}
+
+                    {% if row.credit.due_date  %}
+                    <td>{{ row.credit.due_date.date() }}</td>
+                    {% else %}
+                    <td>-</td>
                     {% endif %}
                 </tr>
             {% endfor %}
@@ -127,25 +145,9 @@
 
 
     <script type="text/javascript">
-        function selects_card() {
-            var checkBox = document.getElementById("check_all_card");
-            var box = document.getElementsByName('chk_card');
-
-            if (checkBox.checked == true){
-                for(var i=0; i<box.length; i++){  
-                    if(box[i].type=='checkbox')  
-                        box[i].checked=true;  
-                }                
-            } else {
-                for(var i=0; i<box.length; i++){  
-                    if(box[i].type=='checkbox')  
-                        box[i].checked=false;  
-                } 
-            }
-        }
-        function selects_due() {
-            var checkBox = document.getElementById("check_all_due");
-            var box = document.getElementsByName('chk_due');
+        function selects_type() {
+            var checkBox = document.getElementById("check_all_types");
+            var box = document.getElementsByName('chk_type');
 
             if (checkBox.checked == true){
                 for(var i=0; i<box.length; i++){  

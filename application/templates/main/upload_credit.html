@@ -1,7 +1,7 @@
 {% extends "base.html" %} 
 
 {% block content %}
-  <h2>Cargar resumenes de cuenta</h2>
+  <h2>Cargar resumenes de tarjeta</h2>
   <div class="col-8">
     <p><b>{{ count }}</b> registros almacenados</p>
     <form method="POST" enctype="multipart/form-data">
@@ -24,10 +24,16 @@
       <p>
         {{ form_card.card.label }}
         {{ form_card.card }}
+        <br>
+        {{ form_card.bank.label }}
+        {{ form_card.bank }}
+        <br>
         {{ form_card.card_number.label }}
         {{ form_card.card_number }}
+        <br>
         {{ form_card.expiration.label }}
         {{ form_card.expiration }}
+        <br>
         {% for fieldName, errorMessages in form_card.errors.items() %}
           <span style="color: red;">{{ errorMessages[0] }}</span>
         {% endfor %}
@@ -38,39 +44,62 @@
   </div>
 
   {% if cards %}
+  <p>Tajertas cargadas</p>
   {% for card in cards %}
-    {{ card.card }}
-    {{ card.card_number }}
+    {{ card.bank }}
+    {{ card.vendor }}
+    {{ card.number }}
     {{ card.expiration.date() }}
   {% endfor %}
   {% endif %}
 
   {% if data %}
+  <p>Cierre: {{ due_date}} Vencimiento {{ close_date }}</p>
   <table class="table table-sm" style='margin-top: 20px;'>
       <thead>
           <tr>
-              <th style="text-align: center;">Banco</th>
-              <th style="text-align: center;">Consumo</th>
-              <th style="text-align: center;">Acreedor</th>
+              <th style="text-align: center;">Tarjeta</th>
+              <th style="text-align: center;">Fecha</th>
+              <th style="text-align: center;">Transacción</th>
               <th>Cuota</th>
-              <th>ARS</th>
-              <th>USD</th>
-              <th>Cierre</th>
+              <th>Monto</th>
+              <th>Moneda</th>
           </tr>
       </thead>
       <tbody>
       {% for row in data[::-1] %}
           <tr>
-              <td style="text-align: center;">{{ row[0] }}</td>
-              <td style="text-align: center;">{{ row[1] }}</td>
               <td style="text-align: center;">{{ row[2] }}</td>
-              <td>{{ row[3] }}</td>
+              <td>{{ row[3].date()  }}</td>
               <td>{{ row[4] }}</td>
               <td>{{ row[5] }}</td>
-              <td>{{ row[6].date() }}</td>
+              <td>{{ row[6] }}</td>
+              <td>{{ row[7] }}</td>
           </tr>
       {% endfor %}
       </tbody>
   </table>
   {% endif %}
+
+  {% if taxes %}
+  <p>Impuestos</p>
+  <table class="table table-sm" style='margin-top: 20px;'>
+    <thead>
+        <tr>
+            <th style="text-align: center;">Tipo</th>
+            <th style="text-align: center;">Monto</th>
+            <th style="text-align: center;">Moneda</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in taxes %}
+        <tr>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[2] }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
 {% endblock %}

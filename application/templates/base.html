@@ -46,10 +46,9 @@
                                 </a>
                                 <div class="dropdown-menu" aria-labelledby="navbarDropdown">
                                   <a class="dropdown-item" href="{{ url_for('main.upload_credit') }}">Cargar</a>
-                                  <a class="dropdown-item" href="{{ url_for('main.payments') }}">Gastos</a>
-                                  <a class="dropdown-item" href="{{ url_for('main.card_amount') }}">Gastos por Tarjeta</a>
+                                  <a class="dropdown-item" href="#">Tarjetas</a>
                                   <a class="dropdown-item" href="{{ url_for('main.due_dates') }}">Vencimientos</a>
-                                  <a class="dropdown-item" href="{{ url_for('main.tag', type='credit') }}">Tag</a>
+                                  <a class="dropdown-item" href="{{ url_for('main.tag', type='credit') }}">Gastos</a>
                                 </div>
                             </li>
                             {% endif %}

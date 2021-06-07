@@ -5,8 +5,9 @@ from sqlalchemy import extract
 
 from flask_login import login_required, current_user
 from flask import render_template
+from sqlalchemy.sql.expression import desc
 
-from application.main.models import Balance, Credit
+from application.main.models import Balance, CreditStatement
 from application import current_app as app, db
 
 @app.route('/')
@@ -33,22 +34,17 @@ def index():
             bal = Balance.query.with_entities(Balance.bal).filter(Balance.bank == bank.bank).all()
             last_bal[bank.bank] = round(float(bal[-1][0]),2)
 
-    if Credit.query.all():
-        bank_credit = Credit.query.filter(Credit.user_id == current_user.id).with_entities(Credit.bank).distinct().all()
-        month_debts = {}
-        for bank in bank_credit:
-            debt = db.session.query(
-                    Credit.user_id, 
-                    db.func.sum(Credit.ars).label('sum'), 
-                    ) \
-                    .group_by(Credit.user_id) \
-                    .filter(Credit.bank == bank.bank, extract('month', Credit.timestamp) >= datetime.today().month).first()
-            
+    query_statement = CreditStatement.query.order_by(CreditStatement.due_date.desc()).first()
+    if query_statement:
+        credit = query_statement
+        print(query_statement.credit)
+
+
     app.logger.info('Entering')
     return render_template(
         "index.html", 
         banks = bank_list, 
         date=datetime.now().date().strftime("%A %w %b de %Y"), 
         last=last_bal,
-        credit = debt
+        credit = credit
         )

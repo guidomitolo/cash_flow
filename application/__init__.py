@@ -45,11 +45,11 @@ def create_app(config_class=DevConfig):
         app.register_blueprint(main_bp)
 
         from application.auth.models import User
-        from application.main.models import Balance, Credit, CreditCard, CreditPayments
+        from application.main.models import Balance, Credit, CreditCard, CreditStatement, CreditTaxes
 
         @app.shell_context_processor
         def make_shell_context():
-            return {'db': db, 'User': User, 'Balance': Balance, 'Credit': Credit, 'CreditCard': CreditCard, 'CreditPayments':CreditPayments}
+            return {'db': db, 'User': User, 'Balance': Balance, 'Credit': Credit, 'CreditCard': CreditCard, 'CreditStatement': CreditStatement, 'CreditTaxes': CreditTaxes}
 
         @login_manager.user_loader
         def load_user(id):

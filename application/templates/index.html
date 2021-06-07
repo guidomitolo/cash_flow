@@ -35,13 +35,16 @@
             <h3>Tarjeta</h3>
             <p class='text-muted'>
                 {% if credit %}
-                Deuda mensual al {{ date }}
                 <ul class="list-group">
                     <li class="list-group-item list-group-item-light">
                         <p style="display: block;"><b>BBVA</b></p>
                         <p style="display: inline;">VISA</p>
-                        <p style="display: inline; float: right; color: red;">ARS {{ '%0.2f'| format(credit[1]|float) }}</p>
-                        </p>
+
+                        <p style="display: inline; float: right;">{{ credit.close_date.date() }}</p>
+                        <p style="display: inline; float: right;">{{ credit.due_date.date() }}</p>
+
+                        <p style="display: inline; float: right; color: red;">ARS {{ '%0.2f'| format(credit.ars|float) }}</p>
+                        <p style="display: inline; float: right; color: red;">USD {{ '%0.2f'| format(credit.usd|float) }}</p>
                     </li>
                 {% else %}
                 No hay datos cargados
