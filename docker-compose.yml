@@ -1,0 +1,49 @@
+version: '3.1'
+
+services:
+
+  pgcashflow:
+    image: postgres:10
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${PSQL_PASS}
+      POSTGRES_DB: ${PSQL_DB}
+    volumes:
+      - 'db-data:/var/lib/postgresql/data'
+    ports:
+      - '5432:5432'
+    networks:
+      lab:
+
+  pgadmpycashflow:
+    image: adminer
+    restart: always
+    ports:
+      - '8080:8080'
+    depends_on:
+      - "pgcashflow"
+    networks:
+      lab:
+
+  pycashflow:
+    image: mauriciomem/pycashflow:v0.1
+    build: .
+    environment:
+       DATABASE_URL: "postgresql://postgres:${PSQL_PASS}@pgcashflow:5432/${PSQL_DB}"
+       SECRET_KEY: ${SECRET_KEY}
+    command: flask db migrate
+    command: flask db upgrade
+    command: gunicorn --bind 0.0.0.0:5001 enter:app
+    ports:
+      - 5001:5001
+    depends_on:
+      - "pgadmpycashflow"
+    networks:
+      lab:
+
+volumes:
+  db-data:
+
+networks:
+  lab:
+    driver: bridge

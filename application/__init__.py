@@ -34,8 +34,6 @@ def create_app(config_class=DevConfig):
         db.init_app(app)
         migrate.init_app(app, db)
         
-        configure_logging(app)
-
         from application import routes, errors
 
         from application.auth import bp as auth_bp
@@ -56,7 +54,6 @@ def create_app(config_class=DevConfig):
             return User.query.get(int(id))
 
         return app
-
 
 def configure_logging(app):
 
